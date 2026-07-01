@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- V1.6 QR CLAIM FIX: QR is claimed on page open, then user has 5 minutes to submit form -->
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -634,6 +635,7 @@
         نتيجة الدخول ستظهر تلقائيًا على شاشة الحارس.
       </p>
       <div class="token-box" id="tokenBox">QR Token: غير موجود</div>
+      <div id="qrSessionStatus" class="notice hidden"></div>
       <div class="notice ok">
         <strong>تنبيه:</strong>
         كل دخول للكراج يجب أن يتم عبر مسح QR مباشر من شاشة الحارس. هذا ينطبق على جميع الموظفين، والمشرفين، والسوبر أدمن أيضًا.
@@ -741,6 +743,8 @@
     const $ = (id) => document.getElementById(id);
     const urlParams = new URLSearchParams(window.location.search);
     const qrToken = urlParams.get("token");
+    let activeQrToken = qrToken;
+    let qrClaimReady = false;
 
     function isConfigReady() {
       return (
@@ -770,9 +774,109 @@
       if (type === "error") badge.classList.add("error");
     }
 
+
+    function setQrSessionStatus(message, type = "warning") {
+      const el = $("qrSessionStatus");
+      if (!el) return;
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    function normalizeRpcData(data, fnName) {
+      let value = data;
+
+      if (Array.isArray(value)) {
+        value = value[0];
+      }
+
+      if (typeof value === "string") {
+        try {
+          value = JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      if (value && fnName && value[fnName]) {
+        value = value[fnName];
+      }
+
+      if (typeof value === "string") {
+        try {
+          value = JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      return value;
+    }
+
+    async function claimQrSessionIfPresent() {
+      if (!qrToken) {
+        setQrSessionStatus(
+          "لم يتم فتح الصفحة عبر QR مباشر. يمكن إرسال طلب تسجيل، لكن الدخول من البوابة يحتاج QR مباشر من شاشة الحارس.",
+          "warning"
+        );
+        return;
+      }
+
+      if (!supabaseClient) {
+        setQrSessionStatus("لا يمكن تفعيل QR قبل إعداد Supabase.", "error");
+        return;
+      }
+
+      try {
+        setQrSessionStatus("جارِ تفعيل QR المباشر...", "warning");
+
+        const { data, error } = await supabaseClient.rpc("claim_qr_session", {
+          p_token: qrToken
+        });
+
+        const result = normalizeRpcData(data, "claim_qr_session");
+
+        if (error) {
+          qrClaimReady = false;
+          setQrSessionStatus(
+            "فشل تفعيل QR: " + (error.message || JSON.stringify(error)) + ". امسح QR جديد من شاشة الحارس.",
+            "error"
+          );
+          return;
+        }
+
+        if (!result || result.ok !== true || !result.claim_token) {
+          qrClaimReady = false;
+          setQrSessionStatus(
+            (result && result.message) ? result.message : "QR غير صالح أو منتهي. امسح QR جديد من شاشة الحارس.",
+            "error"
+          );
+          return;
+        }
+
+        activeQrToken = result.claim_token;
+        qrClaimReady = true;
+
+        $("tokenBox").textContent = "QR Session: active for 5 minutes";
+        setQrSessionStatus(
+          result.message || "تم تفعيل QR. أكمل البيانات خلال 5 دقائق.",
+          "ok"
+        );
+      } catch (err) {
+        qrClaimReady = false;
+        setQrSessionStatus(
+          "حدث خطأ أثناء تفعيل QR: " + (err.message || String(err)) + ". امسح QR جديد من شاشة الحارس.",
+          "error"
+        );
+      }
+    }
+
+
     function initSupabase() {
       $("appTitle").textContent = APP_CONFIG.APP_NAME || "Emergency Room Parking";
-      $("tokenBox").textContent = qrToken ? `QR Token: ${qrToken}` : "QR Token: غير موجود — التسجيل ممكن، لكن الدخول الأول يحتاج QR من الحارس.";
+      $("tokenBox").textContent = qrToken ? "QR Token detected — activating session..." : "QR Token: غير موجود — التسجيل ممكن، لكن الدخول الأول يحتاج QR من الحارس.";
 
       if (!isConfigReady()) {
         setConnection("Supabase غير مفعّل", "error");
@@ -845,7 +949,7 @@
           p_employee_id: $("employeeId").value.trim(),
           p_mobile_number: $("mobileNumber").value.trim(),
           p_specialty: $("specialty").value.trim(),
-          p_qr_token: qrToken || null
+          p_qr_token: activeQrToken || null
         };
 
         const { data, error } = await supabaseClient.rpc("register_employee_request", payload);
@@ -880,7 +984,7 @@
         const payload = {
           p_employee_id: $("checkEmployeeId").value.trim(),
           p_mobile_number: $("checkMobileNumber").value.trim(),
-          p_qr_token: qrToken || null
+          p_qr_token: activeQrToken || null
         };
 
         const { data, error } = await supabaseClient.rpc("manual_employee_check", payload);
@@ -898,6 +1002,7 @@
     });
 
     initSupabase();
+    claimQrSessionIfPresent();
   </script>
 </body>
 </html>
