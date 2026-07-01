@@ -1,0 +1,57 @@
+Emergency Room Parking — Final Package Check
+===========================================
+
+Result: 29/29 checks passed
+
+Files included:
+- index.html: OK (30517 bytes)
+- verify.html: OK (26622 bytes)
+- login.html: OK (21138 bytes)
+- admin_dashboard.html: OK (62623 bytes)
+- schema.sql: OK (49812 bytes)
+- setup_sub_admins.sql: OK (2969 bytes)
+- README.md: OK (14178 bytes)
+- netlify.toml: OK (556 bytes)
+- logo.jpeg: OK (187114 bytes)
+- hero.jpeg: OK (342276 bytes)
+- favicon.svg: OK (700 bytes)
+
+Checks:
+- [OK] كل الملفات المطلوبة موجودة — OK
+- [OK] لا يوجد placeholders داخل ملفات HTML — OK
+- [OK] APP_NAME مضبوط — Emergency Room Parking
+- [OK] SUPABASE_URL مضبوط — https://hnsbsvwxxxysjnhgtinl.supabase.co
+- [OK] LIVE_SITE_URL مضبوط — https://garagey.netlify.app
+- [OK] كل الصور والأيقونات المشار إليها موجودة — OK
+- [OK] النص/القاعدة موجودة: QR مباشر — OK
+- [OK] النص/القاعدة موجودة: يتغير كل 30 ثانية — OK
+- [OK] النص/القاعدة موجودة: SUPER_ADMIN — OK
+- [OK] النص/القاعدة موجودة: SUB_ADMIN — OK
+- [OK] النص/القاعدة موجودة: مستشفى الإسعاف والطوارئ / البشير — OK
+- [OK] النص/القاعدة موجودة: Al-Bashir Hospital Emergency Department — OK
+- [OK] schema يحتوي: employee_registrations — OK
+- [OK] schema يحتوي: admin_profiles — OK
+- [OK] schema يحتوي: specialty_daily_limits — OK
+- [OK] schema يحتوي: gate_access_logs — OK
+- [OK] schema يحتوي: guard_screen_status — OK
+- [OK] schema يحتوي: qr_sessions — OK
+- [OK] schema يحتوي: violation_reports — OK
+- [OK] schema يحتوي: admin_audit_logs — OK
+- [OK] schema يحتوي: create_qr_session — OK
+- [OK] schema يحتوي: register_employee_request — OK
+- [OK] schema يحتوي: manual_employee_check — OK
+- [OK] schema يحتوي: super_admin_upsert_admin_profile — OK
+- [OK] setup_sub_admins يحتوي: osamakan@yahoo.com — OK
+- [OK] setup_sub_admins يحتوي: hasanshehadeh@yahoo.com — OK
+- [OK] setup_sub_admins يحتوي: sulimanawaad@yahoo.com — OK
+- [OK] Netlify publish directory = . — OK
+- [OK] Netlify build command فارغ — OK
+
+Upload instruction:
+افتحي هذا ZIP من تطبيق Files على الآيفون، اعملي Extract/Unzip، ثم ارفعي كل الملفات الموجودة داخله إلى GitHub في نفس المكان بدون مجلدات إضافية.
+
+بعد الرفع:
+1. شغّلي schema.sql في Supabase SQL Editor.
+2. أضيفي نفسك SUPER_ADMIN.
+3. شغّلي setup_sub_admins.sql.
+4. اربطي GitHub مع Netlify أو اعملي Deploy latest commit.

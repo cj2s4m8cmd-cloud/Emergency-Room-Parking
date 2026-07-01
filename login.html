@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>دخول الإدارة | Emergency Room Parking</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #020813;
+      --bg2: #06101f;
+      --panel: rgba(15, 23, 42, 0.78);
+      --panel2: rgba(2, 8, 19, 0.72);
+      --line: rgba(148, 163, 184, 0.22);
+      --text: #e5f2ff;
+      --muted: #9fb3c8;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --shadow-blue: 0 0 42px rgba(56, 189, 248, 0.20);
+      --shadow-green: 0 0 52px rgba(34, 197, 94, 0.35);
+      --shadow-red: 0 0 52px rgba(239, 68, 68, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(56, 189, 248, 0.18), transparent 34%),
+        radial-gradient(circle at 86% 8%, rgba(34, 197, 94, 0.11), transparent 30%),
+        linear-gradient(180deg, #020813 0%, #06101f 48%, #000 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    a {
+      color: #a7f3d0;
+    }
+
+    .login-shell {
+      width: min(1020px, 100%);
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        align-items: flex-start;
+      }
+
+      .login-shell {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      padding: 22px;
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow-blue);
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 30%, transparent 70%, rgba(56, 189, 248, 0.08));
+      opacity: 0.48;
+    }
+
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 520px;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 8, 19, 0.82)),
+        radial-gradient(circle at 18% 10%, rgba(56, 189, 248, 0.14), transparent 36%);
+    }
+
+    .brand-top {
+      display: flex;
+      gap: 13px;
+      align-items: center;
+    }
+
+    .brand-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.26), rgba(34, 197, 94, 0.14));
+      border: 1px solid rgba(56, 189, 248, 0.36);
+      box-shadow: var(--shadow-blue);
+      font-size: 27px;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(22px, 5vw, 32px);
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      margin-top: 5px;
+    }
+
+    .big-title {
+      margin: 36px 0 10px;
+      font-size: clamp(34px, 7vw, 58px);
+      font-weight: 950;
+      letter-spacing: -0.06em;
+      line-height: 1.12;
+    }
+
+    .brand-text {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.95;
+      font-size: 15px;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 9px;
+      margin-top: 22px;
+    }
+
+    .feature {
+      padding: 12px 13px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(2, 8, 19, 0.42);
+      color: #cbd5e1;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .login-panel {
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .login-card-title {
+      margin: 0;
+      font-size: clamp(27px, 6vw, 44px);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+    }
+
+    .login-card-subtitle {
+      color: var(--muted);
+      line-height: 1.8;
+      margin: 8px 0 18px;
+      font-size: 14px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 12px 0 6px;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: #08111f;
+      color: var(--text);
+      border-radius: 16px;
+      padding: 14px;
+      outline: none;
+      font-family: inherit;
+      font-size: 15px;
+      direction: ltr;
+      text-align: left;
+    }
+
+    input::placeholder {
+      color: rgba(159, 179, 200, 0.58);
+    }
+
+    input:focus {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.08);
+    }
+
+    button,
+    .btn {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      cursor: pointer;
+      color: white;
+      font-weight: 900;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-top: 14px;
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.16);
+      transition: transform 0.15s ease, filter 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    button:hover,
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-green {
+      background: linear-gradient(135deg, #15803d, #22c55e);
+    }
+
+    .btn-soft {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      color: #dbeafe;
+    }
+
+    .notice {
+      margin: 14px 0 0;
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(250, 204, 21, 0.36);
+      background: rgba(250, 204, 21, 0.10);
+      color: #fef3c7;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .notice.error {
+      border-color: rgba(239, 68, 68, 0.42);
+      background: rgba(239, 68, 68, 0.10);
+      color: #fecaca;
+    }
+
+    .notice.ok {
+      border-color: rgba(34, 197, 94, 0.38);
+      background: rgba(34, 197, 94, 0.10);
+      color: #bbf7d0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .pill {
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(2, 8, 19, 0.45);
+      color: var(--muted);
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .pill.ready {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.28);
+    }
+
+    .pill.error {
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.34);
+    }
+
+
+
+    .app-hero-cover {
+      position: relative;
+      min-height: 220px;
+      margin: 0 0 16px;
+      border-radius: 30px;
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      background:
+        linear-gradient(90deg, rgba(2, 8, 19, 0.92), rgba(2, 8, 19, 0.56), rgba(2, 8, 19, 0.24)),
+        url("./hero.jpeg") center center / cover no-repeat;
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.18);
+    }
+
+    .app-hero-cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(56, 189, 248, 0.20), transparent 34%),
+        linear-gradient(180deg, transparent, rgba(2, 8, 19, 0.72));
+    }
+
+    .app-hero-content {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 100%);
+      min-height: 220px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .app-hero-kicker {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(239, 68, 68, 0.36);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fecaca;
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .app-hero-title {
+      margin: 0;
+      font-size: clamp(26px, 6vw, 46px);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 1.1;
+      color: #f8fbff;
+      text-shadow: 0 0 24px rgba(2, 8, 19, 0.80);
+    }
+
+    .app-hero-subtitle {
+      margin: 9px 0 0;
+      color: rgba(224, 242, 254, 0.86);
+      line-height: 1.75;
+      font-size: 14px;
+      text-shadow: 0 0 18px rgba(2, 8, 19, 0.80);
+    }
+
+    @media (max-width: 700px) {
+      .app-hero-cover,
+      .app-hero-content {
+        min-height: 190px;
+      }
+    }
+
+
+    .hospital-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 20px;
+      background: rgba(2, 8, 19, 0.42);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
+    }
+
+    .hospital-logo {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.16);
+      background: #020813;
+      flex: 0 0 auto;
+    }
+
+    .hospital-name-ar {
+      font-size: 14px;
+      font-weight: 900;
+      color: #e0f2fe;
+      line-height: 1.45;
+    }
+
+    .hospital-name-en {
+      direction: ltr;
+      text-align: left;
+      font-size: 12px;
+      color: rgba(186, 230, 253, 0.76);
+      margin-top: 3px;
+      letter-spacing: 0.02em;
+    }
+
+    .permission-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .permission-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .permission-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(2, 8, 19, 0.42);
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .permission-box input {
+      width: auto;
+      accent-color: #38bdf8;
+      margin: 0;
+    }
+
+
+    .login-hero-visual {
+      min-height: 170px;
+      margin: 18px 0 0;
+      border-radius: 24px;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      background:
+        linear-gradient(180deg, rgba(2, 8, 19, 0.10), rgba(2, 8, 19, 0.70)),
+        url("./hero.jpeg") center center / cover no-repeat;
+      box-shadow: inset 0 0 35px rgba(2, 8, 19, 0.30), 0 0 28px rgba(56, 189, 248, 0.10);
+    }
+
+    .creator-signature {
+      width: 100%;
+      margin: 18px 0 0;
+      padding: 0 4px 2px;
+      display: flex;
+      justify-content: flex-start;
+      direction: ltr;
+    }
+
+    .creator-signature-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 10px 14px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(2, 8, 19, 0.72), rgba(15, 23, 42, 0.58));
+      border: 1px solid rgba(56, 189, 248, 0.20);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.10);
+      backdrop-filter: blur(18px);
+    }
+
+    .creator-label {
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(186, 230, 253, 0.76);
+      font-weight: 800;
+    }
+
+    .creator-name {
+      font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
+      font-size: clamp(16px, 3.2vw, 22px);
+      color: #e0f2fe;
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.42);
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="login-shell">
+    <section class="panel brand-panel">
+      <div>
+        <div class="brand-top">
+          <div class="brand-icon">🔐</div>
+          <div>
+            <h1 class="brand-title" id="appTitle">Emergency Room Parking</h1>
+            <div class="brand-subtitle">لوحة إدارة خاصة ومحمية</div>
+        <div class="hospital-identity">
+          <img class="hospital-logo" src="./logo.jpeg" alt="Al-Bashir Hospital Emergency Department" />
+          <div>
+            <div class="hospital-name-ar">مستشفى الإسعاف والطوارئ / البشير</div>
+            <div class="hospital-name-en">Al-Bashir Hospital Emergency Department</div>
+          </div>
+        </div>
+
+          </div>
+        </div>
+
+        <h2 class="big-title">Admin Control</h2>
+        <p class="brand-text">
+          هذه الصفحة مخصصة للإدارة فقط. يتم الدخول بواسطة مستخدم Supabase Auth،
+          ثم يتم التحقق من الصلاحية داخل جدول admin_profiles.
+        </p>
+
+        <div class="login-hero-visual" aria-label="Emergency Department entrance image"></div>
+
+        <div class="feature-list">
+          <div class="feature">SUPER_ADMIN يستطيع إدارة المشرفين والحدود اليومية والتصدير.</div>
+          <div class="feature">SUB_ADMIN يستطيع مراجعة الطلبات والبلاغات والإحصائيات.</div>
+          <div class="feature">لا يوجد service_role في الواجهة. الدخول يعتمد على Auth و RLS.</div>
+          <div class="feature">صلاحية الإدارة لا تتجاوز البوابة: كل أدمن وسوبر أدمن يجب أن يمسح QR عند دخول الكراج مثل أي موظف.</div>
+
+        </div>
+      </div>
+
+      <footer class="creator-signature" aria-label="Creator signature">
+        <div class="creator-signature-card">
+          <span class="creator-label">Concept &amp; Programming</span>
+          <span class="creator-name">Dr. Alaa Aqrabawi</span>
+        </div>
+      </footer>
+    </section>
+
+    <section class="panel login-panel">
+      <h2 class="login-card-title">دخول الإدارة</h2>
+      <p class="login-card-subtitle">
+        استخدمي نفس الإيميل وكلمة المرور التي تم إنشاؤها داخل Supabase Authentication → Users.
+      </p>
+
+      <div class="status-row">
+        <span class="pill" id="connectionBadge">جارِ فحص الاتصال...</span>
+        <span class="pill" id="sessionBadge">غير مسجل الدخول</span>
+      </div>
+
+      <div id="setupWarning" class="notice hidden"></div>
+
+      <form id="loginForm">
+        <label for="email">الإيميل</label>
+        <input id="email" type="email" placeholder="admin@example.com" autocomplete="email" required />
+
+        <label for="password">كلمة المرور</label>
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password" required />
+
+        <button id="loginButton" type="submit" class="btn-green">دخول لوحة التحكم</button>
+      </form>
+
+      <button type="button" class="btn-soft" id="logoutButton" onclick="logout()" style="display:none">تسجيل خروج</button>
+      <a class="btn btn-soft" href="./index.html">رجوع إلى شاشة الحارس</a>
+      <a class="btn btn-soft" href="./verify.html">صفحة تسجيل الموظفين</a>
+
+      <div id="resultBox" class="notice hidden"></div>
+    </section>
+  </main>
+
+  <script>
+    // =========================================================
+    // CONFIG
+    // بدلي هذه القيم بعد إنشاء Supabase.
+    // لا تضعي service_role هنا أبدًا.
+    // =========================================================
+    const APP_CONFIG = {
+      APP_NAME: "Emergency Room Parking",
+      SUPABASE_URL: "https://hnsbsvwxxxysjnhgtinl.supabase.co",
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhuc2Jzdnd4eHh5c2puaGd0aW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTMwNjAsImV4cCI6MjA5ODQyOTA2MH0.QtzYlzjmoGNvjhJhxdGxEwUTKWm0WHGGKn2THSBOgAo"
+    };
+
+    let supabaseClient = null;
+    const $ = (id) => document.getElementById(id);
+
+    function isConfigReady() {
+      return (
+        APP_CONFIG.SUPABASE_URL &&
+        APP_CONFIG.SUPABASE_URL.startsWith("https://") &&
+        !APP_CONFIG.SUPABASE_URL.includes("PASTE_") &&
+        APP_CONFIG.SUPABASE_ANON_KEY &&
+        APP_CONFIG.SUPABASE_ANON_KEY.length > 20 &&
+        !APP_CONFIG.SUPABASE_ANON_KEY.includes("PASTE_")
+      );
+    }
+
+    function showMessage(message, type = "warning") {
+      const el = $("resultBox");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    function showSetupWarning(message, type = "warning") {
+      const el = $("setupWarning");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    function setConnection(text, type = "ready") {
+      const badge = $("connectionBadge");
+      badge.textContent = text;
+      badge.className = "pill";
+      if (type === "ready") badge.classList.add("ready");
+      if (type === "error") badge.classList.add("error");
+    }
+
+    function setSessionBadge(text, type = "ready") {
+      const badge = $("sessionBadge");
+      badge.textContent = text;
+      badge.className = "pill";
+      if (type === "ready") badge.classList.add("ready");
+      if (type === "error") badge.classList.add("error");
+    }
+
+    function initSupabase() {
+      $("appTitle").textContent = APP_CONFIG.APP_NAME || "Emergency Room Parking";
+
+      if (!isConfigReady()) {
+        setConnection("Supabase غير مفعّل", "error");
+        showSetupWarning(
+          "لم يتم إعداد Supabase بعد. ضعي SUPABASE_URL و SUPABASE_ANON_KEY بعد تشغيل schema.sql.",
+          "error"
+        );
+        return;
+      }
+
+      supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+      setConnection("Supabase جاهز", "ready");
+      checkExistingSession();
+    }
+
+    async function checkExistingSession() {
+      if (!supabaseClient) return;
+
+      const { data } = await supabaseClient.auth.getSession();
+
+      if (data?.session?.user) {
+        setSessionBadge("جلسة موجودة", "ready");
+        $("logoutButton").style.display = "inline-flex";
+      } else {
+        setSessionBadge("غير مسجل الدخول", "error");
+        $("logoutButton").style.display = "none";
+      }
+    }
+
+    async function verifyAdminAndRedirect() {
+      const { data, error } = await supabaseClient.rpc("get_my_admin_profile");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data || data.ok !== true) {
+        throw new Error(data?.message || "هذا المستخدم غير مسموح له بدخول الإدارة.");
+      }
+
+      showMessage(`مرحبًا ${data.full_name || data.email} — الدور: ${data.role}`, "ok");
+
+      setTimeout(() => {
+        window.location.href = "./admin_dashboard.html";
+      }, 700);
+    }
+
+    $("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!supabaseClient) {
+        showMessage("لا يمكن تسجيل الدخول قبل إعداد Supabase.", "error");
+        return;
+      }
+
+      const button = $("loginButton");
+      button.disabled = true;
+      button.textContent = "جارِ تسجيل الدخول...";
+
+      try {
+        const email = $("email").value.trim();
+        const password = $("password").value;
+
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        if (!data?.user) {
+          throw new Error("لم يتم العثور على المستخدم.");
+        }
+
+        setSessionBadge("تم تسجيل الدخول", "ready");
+
+        await verifyAdminAndRedirect();
+      } catch (err) {
+        showMessage("فشل الدخول: " + err.message, "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = "دخول لوحة التحكم";
+      }
+    });
+
+    async function logout() {
+      if (!supabaseClient) return;
+
+      await supabaseClient.auth.signOut();
+      setSessionBadge("تم تسجيل الخروج", "error");
+      $("logoutButton").style.display = "none";
+      showMessage("تم تسجيل الخروج.", "ok");
+    }
+
+    initSupabase();
+  </script>
+</body>
+</html>

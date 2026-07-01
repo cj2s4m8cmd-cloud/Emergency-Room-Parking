@@ -1,0 +1,1935 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>لوحة الإدارة | Emergency Room Parking</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #020813;
+      --bg2: #06101f;
+      --panel: rgba(15, 23, 42, 0.78);
+      --panel2: rgba(2, 8, 19, 0.72);
+      --line: rgba(148, 163, 184, 0.22);
+      --text: #e5f2ff;
+      --muted: #9fb3c8;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --shadow-blue: 0 0 42px rgba(56, 189, 248, 0.18);
+      --shadow-green: 0 0 42px rgba(34, 197, 94, 0.24);
+      --shadow-red: 0 0 42px rgba(239, 68, 68, 0.24);
+      --shadow-yellow: 0 0 42px rgba(250, 204, 21, 0.20);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(56, 189, 248, 0.18), transparent 34%),
+        radial-gradient(circle at 86% 2%, rgba(34, 197, 94, 0.10), transparent 30%),
+        radial-gradient(circle at 50% 100%, rgba(250, 204, 21, 0.07), transparent 32%),
+        linear-gradient(180deg, #020813 0%, #06101f 46%, #000 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: #a7f3d0;
+    }
+
+    .app-shell {
+      width: min(1420px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 10px 0;
+      background: linear-gradient(180deg, rgba(2, 8, 19, 0.92), rgba(2, 8, 19, 0.62));
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(34, 197, 94, 0.14));
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: var(--shadow-blue);
+      font-size: 24px;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(21px, 4vw, 31px);
+      letter-spacing: -0.04em;
+      font-weight: 950;
+    }
+
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+      line-height: 1.7;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.72);
+      color: var(--muted);
+      padding: 10px 13px;
+      border-radius: 999px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.06);
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .pill.ready {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.32);
+    }
+
+    .pill.super {
+      color: #fde68a;
+      border-color: rgba(250, 204, 21, 0.38);
+    }
+
+    .pill.error {
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.36);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 0 16px;
+    }
+
+    .tab-btn {
+      width: auto;
+      margin: 0;
+      padding: 10px 13px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.74);
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      color: #cbd5e1;
+      box-shadow: none;
+      font-size: 13px;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.95), rgba(14, 165, 233, 0.95));
+      color: white;
+      border-color: rgba(56, 189, 248, 0.40);
+      box-shadow: var(--shadow-blue);
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 18px;
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow-blue);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.07), transparent 28%, transparent 72%, rgba(56, 189, 248, 0.07));
+      opacity: 0.46;
+    }
+
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel-title {
+      margin: 0 0 8px;
+      font-size: clamp(20px, 4vw, 29px);
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .panel-desc {
+      color: var(--muted);
+      margin: 0 0 14px;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 1100px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stat-card {
+      position: relative;
+      border-radius: 24px;
+      padding: 17px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: inset 0 0 26px rgba(56, 189, 248, 0.04);
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: "";
+      position: absolute;
+      inset: auto 12px 10px 12px;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.75), transparent);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 7px;
+    }
+
+    .stat-value {
+      font-size: clamp(28px, 6vw, 44px);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 1;
+    }
+
+    .stat-card.green {
+      box-shadow: var(--shadow-green);
+      border-color: rgba(34, 197, 94, 0.28);
+    }
+
+    .stat-card.red {
+      box-shadow: var(--shadow-red);
+      border-color: rgba(239, 68, 68, 0.28);
+    }
+
+    .stat-card.yellow {
+      box-shadow: var(--shadow-yellow);
+      border-color: rgba(250, 204, 21, 0.30);
+    }
+
+    .stat-card.orange {
+      border-color: rgba(251, 146, 60, 0.30);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 920px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(2, 8, 19, 0.38);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 780px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.13);
+      text-align: right;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #bae6fd;
+      font-weight: 900;
+      background: rgba(2, 8, 19, 0.52);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td {
+      color: #dbeafe;
+    }
+
+    tr:hover td {
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 900;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.72);
+    }
+
+    .badge.green {
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.35);
+      background: rgba(34, 197, 94, 0.09);
+    }
+
+    .badge.red {
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.09);
+    }
+
+    .badge.yellow {
+      color: #fef3c7;
+      border-color: rgba(250, 204, 21, 0.35);
+      background: rgba(250, 204, 21, 0.09);
+    }
+
+    .badge.blue {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.09);
+    }
+
+    .badge.orange {
+      color: #fed7aa;
+      border-color: rgba(251, 146, 60, 0.35);
+      background: rgba(251, 146, 60, 0.09);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    button,
+    .btn {
+      border: 0;
+      outline: 0;
+      cursor: pointer;
+      color: white;
+      font-weight: 900;
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.12);
+      transition: transform 0.15s ease, filter 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    button:hover,
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-green {
+      background: linear-gradient(135deg, #15803d, #22c55e);
+    }
+
+    .btn-red {
+      background: linear-gradient(135deg, #991b1b, #ef4444);
+    }
+
+    .btn-yellow {
+      background: linear-gradient(135deg, #a16207, #facc15);
+      color: #111827;
+    }
+
+    .btn-soft {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      color: #dbeafe;
+      box-shadow: none;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 1000px) {
+      .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin: 4px 0 6px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: #08111f;
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px;
+      outline: none;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    input::placeholder {
+      color: rgba(159, 179, 200, 0.58);
+    }
+
+    input:focus,
+    select:focus {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.08);
+    }
+
+    .notice {
+      margin: 12px 0;
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(250, 204, 21, 0.36);
+      background: rgba(250, 204, 21, 0.10);
+      color: #fef3c7;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .notice.error {
+      border-color: rgba(239, 68, 68, 0.42);
+      background: rgba(239, 68, 68, 0.10);
+      color: #fecaca;
+    }
+
+    .notice.ok {
+      border-color: rgba(34, 197, 94, 0.38);
+      background: rgba(34, 197, 94, 0.10);
+      color: #bbf7d0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .photo-thumb {
+      width: 82px;
+      height: 62px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      background: #020813;
+    }
+
+    .small-muted {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+
+
+    .app-hero-cover {
+      position: relative;
+      min-height: 220px;
+      margin: 0 0 16px;
+      border-radius: 30px;
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      background:
+        linear-gradient(90deg, rgba(2, 8, 19, 0.92), rgba(2, 8, 19, 0.56), rgba(2, 8, 19, 0.24)),
+        url("./hero.jpeg") center center / cover no-repeat;
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.18);
+    }
+
+    .app-hero-cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(56, 189, 248, 0.20), transparent 34%),
+        linear-gradient(180deg, transparent, rgba(2, 8, 19, 0.72));
+    }
+
+    .app-hero-content {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 100%);
+      min-height: 220px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .app-hero-kicker {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(239, 68, 68, 0.36);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fecaca;
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .app-hero-title {
+      margin: 0;
+      font-size: clamp(26px, 6vw, 46px);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 1.1;
+      color: #f8fbff;
+      text-shadow: 0 0 24px rgba(2, 8, 19, 0.80);
+    }
+
+    .app-hero-subtitle {
+      margin: 9px 0 0;
+      color: rgba(224, 242, 254, 0.86);
+      line-height: 1.75;
+      font-size: 14px;
+      text-shadow: 0 0 18px rgba(2, 8, 19, 0.80);
+    }
+
+    @media (max-width: 700px) {
+      .app-hero-cover,
+      .app-hero-content {
+        min-height: 190px;
+      }
+    }
+
+
+    .hospital-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 20px;
+      background: rgba(2, 8, 19, 0.42);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
+    }
+
+    .hospital-logo {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.16);
+      background: #020813;
+      flex: 0 0 auto;
+    }
+
+    .hospital-name-ar {
+      font-size: 14px;
+      font-weight: 900;
+      color: #e0f2fe;
+      line-height: 1.45;
+    }
+
+    .hospital-name-en {
+      direction: ltr;
+      text-align: left;
+      font-size: 12px;
+      color: rgba(186, 230, 253, 0.76);
+      margin-top: 3px;
+      letter-spacing: 0.02em;
+    }
+
+    .permission-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .permission-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .permission-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(2, 8, 19, 0.42);
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .permission-box input {
+      width: auto;
+      accent-color: #38bdf8;
+      margin: 0;
+    }
+
+    .creator-signature {
+      width: min(1420px, 100%);
+      margin: 14px auto 0;
+      padding: 0 4px 2px;
+      display: flex;
+      justify-content: flex-start;
+      direction: ltr;
+    }
+
+    .creator-signature-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 10px 14px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(2, 8, 19, 0.72), rgba(15, 23, 42, 0.58));
+      border: 1px solid rgba(56, 189, 248, 0.20);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.10);
+      backdrop-filter: blur(18px);
+    }
+
+    .creator-label {
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(186, 230, 253, 0.76);
+      font-weight: 800;
+    }
+
+    .creator-name {
+      font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
+      font-size: clamp(16px, 3.2vw, 22px);
+      color: #e0f2fe;
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.42);
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">🧠</div>
+        <div>
+          <h1 class="brand-title" id="appTitle">لوحة إدارة Emergency Room Parking</h1>
+          <div class="brand-subtitle" id="adminLine">جارِ التحقق من صلاحية الإدارة...</div>
+        <div class="hospital-identity">
+          <img class="hospital-logo" src="./logo.jpeg" alt="Al-Bashir Hospital Emergency Department" />
+          <div>
+            <div class="hospital-name-ar">مستشفى الإسعاف والطوارئ / البشير</div>
+            <div class="hospital-name-en">Al-Bashir Hospital Emergency Department</div>
+          </div>
+        </div>
+
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <span class="pill" id="connectionBadge">جارِ فحص الاتصال...</span>
+        <span class="pill" id="roleBadge">غير معروف</span>
+        <button class="btn-soft" type="button" onclick="refreshAll()">تحديث</button>
+        <a class="btn btn-soft" href="./index.html">شاشة الحارس</a>
+        <button class="btn-red" type="button" onclick="logout()">خروج</button>
+      </div>
+    </header>
+
+    
+    <section class="app-hero-cover" aria-label="Emergency Room Parking interface image">
+      <div class="app-hero-content">
+        <span class="app-hero-kicker">Emergency Room Parking</span>
+        <h2 class="app-hero-title">بوابة كراج الطوارئ</h2>
+        <p class="app-hero-subtitle">دخول منظم عبر QR مباشر لكل موظف، مشرف، وسوبر أدمن عند كل دخول.</p>
+      </div>
+    </section>
+
+<div id="setupWarning" class="notice hidden"></div>
+    <div id="toast" class="notice hidden"></div>
+    <div class="notice ok">
+      <strong>قاعدة الدخول للكراج:</strong>
+      صلاحية الإدارة لا تعني دخول الكراج تلقائيًا. كل شخص، حتى SUPER_ADMIN و SUB_ADMIN، يجب أن يكون مسجلًا وموافقًا عليه كموظف، ويمسح QR مباشر عند كل دخول.
+    </div>
+
+
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="showTab('overview', this)">الرئيسية</button>
+      <button class="tab-btn" onclick="showTab('registrations', this)">طلبات التسجيل</button>
+      <button class="tab-btn" onclick="showTab('limits', this)">حدود الاختصاصات</button>
+      <button class="tab-btn" onclick="showTab('logs', this)">سجلات الدخول</button>
+      <button class="tab-btn" onclick="showTab('violations', this)">بلاغات الحارس</button>
+      <button class="tab-btn" onclick="showTab('admins', this)">المشرفون</button>
+      <button class="tab-btn" onclick="showTab('audit', this)">Audit</button>
+      <button class="tab-btn" onclick="showTab('exports', this)">CSV</button>
+    </nav>
+
+    <section id="overview" class="section active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">إجمالي آخر 30 يوم</div>
+          <div class="stat-value" id="stat30Days">0</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">إجمالي آخر 24 ساعة</div>
+          <div class="stat-value" id="stat24Hours">0</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-label">طلبات قيد المراجعة</div>
+          <div class="stat-value" id="statPending">0</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">بلاغات جديدة</div>
+          <div class="stat-value" id="statNewViolations">0</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2 class="panel-title">آخر 10 دقائق حسب النتيجة</h2>
+          <p class="panel-desc">مفيد لمعرفة ازدحام البوابة أو تكرار الرفض في الوقت الحالي.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>النتيجة</th>
+                  <th>العدد</th>
+                </tr>
+              </thead>
+              <tbody id="last10Body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2 class="panel-title">الإحصائيات حسب الاختصاص</h2>
+          <p class="panel-desc">يعرض عدد محاولات الدخول لكل قسم / اختصاص.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الاختصاص</th>
+                  <th>العدد</th>
+                </tr>
+              </thead>
+              <tbody id="specialtyStatsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">استخدام الحدود اليومية</h2>
+        <p class="panel-desc">للاختصاصات التي تعمل بنظام “مسموح جزئيًا”.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الاختصاص</th>
+                <th>الحد اليومي</th>
+                <th>المستخدم اليوم</th>
+                <th>المتبقي</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="limitsUsageBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="registrations" class="section">
+      <div class="panel">
+        <h2 class="panel-title">طلبات التسجيل</h2>
+        <p class="panel-desc">الموظفون الجدد يظهرون هنا. يمكن الموافقة أو الرفض، والدخول الأول لا يعني الاعتماد النهائي.</p>
+        <div class="toolbar">
+          <button onclick="loadRegistrations()">تحديث الطلبات</button>
+          <button class="btn-soft" onclick="exportCsv('registrations')">تصدير CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>رقم الموظف</th>
+                <th>الهاتف</th>
+                <th>الاختصاص</th>
+                <th>الحالة</th>
+                <th>الدخول الأول</th>
+                <th>تاريخ الطلب</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="registrationsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits" class="section">
+      <div class="panel">
+        <h2 class="panel-title">إدارة حدود الاختصاصات اليومية</h2>
+        <p class="panel-desc">
+          هذه المنطقة تحدد من يظهر له اللون الأصفر “مسموح جزئيًا”. التعديل متاح للسوبر أدمن فقط.
+        </p>
+
+        <div id="superOnlyLimitNotice" class="notice hidden">تعديل الحدود متاح للسوبر أدمن فقط. يمكنك رؤية الحدود الحالية بدون تعديل.</div>
+
+        <div class="form-grid" id="limitFormBox">
+          <div>
+            <label for="limitSpecialty">اسم الاختصاص</label>
+            <input id="limitSpecialty" type="text" placeholder="مثال: الأشعة" />
+          </div>
+          <div>
+            <label for="limitCount">العدد اليومي</label>
+            <input id="limitCount" type="number" min="0" value="0" />
+          </div>
+          <div>
+            <label for="limitActive">الحالة</label>
+            <select id="limitActive">
+              <option value="true">مفعّل</option>
+              <option value="false">غير مفعّل</option>
+            </select>
+          </div>
+          <div>
+            <button class="btn-yellow" onclick="saveLimit()">حفظ الحد</button>
+          </div>
+        </div>
+
+        <div class="toolbar" style="margin-top:12px">
+          <button onclick="loadLimits()">تحديث الحدود</button>
+          <button class="btn-soft" onclick="exportCsv('limits')">تصدير CSV</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الاختصاص</th>
+                <th>الحد اليومي</th>
+                <th>الحالة</th>
+                <th>آخر تعديل</th>
+                <th>اختيار للتعديل</th>
+              </tr>
+            </thead>
+            <tbody id="limitsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="logs" class="section">
+      <div class="panel">
+        <h2 class="panel-title">سجلات الدخول</h2>
+        <p class="panel-desc">كل محاولة دخول تظهر هنا: مسموح، مرفوض، مسموح جزئيًا، أو دخول أول مرة.</p>
+        <div class="toolbar">
+          <button onclick="loadLogs()">تحديث السجلات</button>
+          <button class="btn-soft" onclick="exportCsv('logs')">تصدير CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الوقت</th>
+                <th>الاسم</th>
+                <th>رقم الموظف</th>
+                <th>الهاتف</th>
+                <th>الاختصاص</th>
+                <th>النتيجة</th>
+                <th>السبب</th>
+              </tr>
+            </thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="violations" class="section">
+      <div class="panel">
+        <h2 class="panel-title">بلاغات الحارس</h2>
+        <p class="panel-desc">تظهر هنا الصور والملاحظات المرسلة من شاشة الحارس.</p>
+        <div class="toolbar">
+          <button onclick="loadViolations()">تحديث البلاغات</button>
+          <button class="btn-soft" onclick="exportCsv('violations')">تصدير CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الصورة</th>
+                <th>رقم الموظف</th>
+                <th>الملاحظة</th>
+                <th>الحالة</th>
+                <th>الوقت</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="violationsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="admins" class="section">
+      <div class="panel">
+        <h2 class="panel-title">إدارة المشرفين والصلاحيات</h2>
+        <p class="panel-desc">
+          يمكنك إضافة مشرف، إزالة مشرف، أو تحديد مهامه من هنا. يجب إنشاء إيميل المشرف أولًا من Supabase Authentication → Users، ثم إضافته هنا.
+        </p>
+
+        <div id="superOnlyAdminNotice" class="notice hidden">إضافة أو تعديل أو حذف المشرفين متاح للسوبر أدمن فقط.</div>
+
+        <div id="adminFormBox">
+          <div class="form-grid">
+            <div>
+              <label for="adminEmail">إيميل المشرف</label>
+              <input id="adminEmail" type="email" placeholder="admin@example.com" dir="ltr" />
+            </div>
+            <div>
+              <label for="adminName">الاسم</label>
+              <input id="adminName" type="text" placeholder="اسم المشرف" />
+            </div>
+            <div>
+              <label for="adminPhone">رقم الهاتف</label>
+              <input id="adminPhone" type="tel" placeholder="07xxxxxxxx" dir="ltr" />
+            </div>
+            <div>
+              <label for="adminRole">الدور</label>
+              <select id="adminRole" onchange="applyRoleDefaultPermissions()">
+                <option value="SUB_ADMIN">SUB_ADMIN</option>
+                <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+              </select>
+            </div>
+            <div>
+              <label for="adminActive">الحالة</label>
+              <select id="adminActive">
+                <option value="true">مفعّل</option>
+                <option value="false">معطّل</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="margin-top:14px">مهام وحدود هذا الأدمن</label>
+          <div class="permission-grid">
+            <label class="permission-box"><input type="checkbox" id="permApprove" /> موافقة / رفض طلبات التسجيل</label>
+            <label class="permission-box"><input type="checkbox" id="permViolations" /> مراجعة بلاغات الحارس</label>
+            <label class="permission-box"><input type="checkbox" id="permLogs" /> رؤية سجلات الدخول والإحصائيات</label>
+            <label class="permission-box"><input type="checkbox" id="permExport" /> تصدير CSV</label>
+            <label class="permission-box"><input type="checkbox" id="permLimits" /> تعديل حدود الاختصاصات اليومية</label>
+            <label class="permission-box"><input type="checkbox" id="permAudit" /> رؤية سجل Audit</label>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn-green" id="saveAdminButton" onclick="saveAdmin()">حفظ المشرف</button>
+          <button class="btn-soft" onclick="clearAdminForm()">تفريغ النموذج</button>
+          <button onclick="loadAdmins()">تحديث المشرفين</button>
+          <button class="btn-soft" onclick="exportCsv('admins')">تصدير CSV</button>
+        </div>
+
+        <div class="notice">
+          المشرفون الذين زودتِني بأسمائهم وأرقامهم تمت إضافتهم في التعليمات، لكن لا يمكن تفعيل دخولهم فعليًا حتى تزوّديني بإيميلاتهم وتنشئي لهم Users في Supabase Auth.
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الإيميل</th>
+                <th>الاسم</th>
+                <th>الهاتف</th>
+                <th>الدور</th>
+                <th>الحالة</th>
+                <th>المهام</th>
+                <th>تاريخ الإضافة</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="adminsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="audit" class="section">
+      <div class="panel">
+        <h2 class="panel-title">سجل Audit</h2>
+        <p class="panel-desc">تسجيل العمليات المهمة: موافقة، رفض، تغيير حد، إضافة مشرف، مراجعة بلاغ.</p>
+        <div class="toolbar">
+          <button onclick="loadAudit()">تحديث Audit</button>
+          <button class="btn-soft" onclick="exportCsv('audit')">تصدير CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الوقت</th>
+                <th>الإجراء</th>
+                <th>الجدول</th>
+                <th>الهدف</th>
+                <th>تفاصيل</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="exports" class="section">
+      <div class="panel">
+        <h2 class="panel-title">تصدير CSV</h2>
+        <p class="panel-desc">حمّلي أي جدول بصيغة CSV لفتحه في Excel أو Google Sheets.</p>
+        <div class="toolbar">
+          <button onclick="exportCsv('registrations')">طلبات التسجيل</button>
+          <button onclick="exportCsv('logs')">سجلات الدخول</button>
+          <button onclick="exportCsv('violations')">بلاغات الحارس</button>
+          <button onclick="exportCsv('limits')">حدود الاختصاصات</button>
+          <button onclick="exportCsv('admins')">المشرفون</button>
+          <button onclick="exportCsv('audit')">Audit</button>
+        </div>
+        <div class="notice">
+          إذا كان الجدول فارغًا، اضغطي تحديث أولًا أو انتظري وصول بيانات من التطبيق.
+        </div>
+      </div>
+    </section>
+
+    <footer class="creator-signature" aria-label="Creator signature">
+      <div class="creator-signature-card">
+        <span class="creator-label">Concept &amp; Programming</span>
+        <span class="creator-name">Dr. Alaa Aqrabawi</span>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    // =========================================================
+    // CONFIG
+    // بدلي هذه القيم بعد إنشاء Supabase.
+    // لا تضعي service_role هنا أبدًا.
+    // =========================================================
+    const APP_CONFIG = {
+      APP_NAME: "Emergency Room Parking",
+      SUPABASE_URL: "https://hnsbsvwxxxysjnhgtinl.supabase.co",
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhuc2Jzdnd4eHh5c2puaGd0aW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTMwNjAsImV4cCI6MjA5ODQyOTA2MH0.QtzYlzjmoGNvjhJhxdGxEwUTKWm0WHGGKn2THSBOgAo"
+    };
+
+    let supabaseClient = null;
+    let adminProfile = null;
+
+    let registrationsData = [];
+    let logsData = [];
+    let limitsData = [];
+    let violationsData = [];
+    let adminsData = [];
+    let auditData = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+      try {
+        return new Date(value).toLocaleString("ar-JO", {
+          dateStyle: "short",
+          timeStyle: "short"
+        });
+      } catch {
+        return value;
+      }
+    }
+
+    function statusBadge(status) {
+      const value = String(status || "").toUpperCase();
+      if (value === "APPROVED" || value === "ALLOWED" || value === "RESOLVED") return `<span class="badge green">${escapeHtml(status)}</span>`;
+      if (value === "REJECTED" || value === "DENIED") return `<span class="badge red">${escapeHtml(status)}</span>`;
+      if (value === "LIMITED" || value === "PENDING_FIRST_ENTRY" || value === "PENDING") return `<span class="badge yellow">${escapeHtml(status)}</span>`;
+      if (value === "NEW") return `<span class="badge orange">${escapeHtml(status)}</span>`;
+      if (value === "REVIEWED") return `<span class="badge blue">${escapeHtml(status)}</span>`;
+      return `<span class="badge">${escapeHtml(status || "-")}</span>`;
+    }
+
+    function isConfigReady() {
+      return (
+        APP_CONFIG.SUPABASE_URL &&
+        APP_CONFIG.SUPABASE_URL.startsWith("https://") &&
+        !APP_CONFIG.SUPABASE_URL.includes("PASTE_") &&
+        APP_CONFIG.SUPABASE_ANON_KEY &&
+        APP_CONFIG.SUPABASE_ANON_KEY.length > 20 &&
+        !APP_CONFIG.SUPABASE_ANON_KEY.includes("PASTE_")
+      );
+    }
+
+    function showToast(message, type = "warning") {
+      const el = $("toast");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => el.classList.add("hidden"), 5000);
+    }
+
+    function showSetupWarning(message, type = "warning") {
+      const el = $("setupWarning");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    function setConnection(text, type = "ready") {
+      const badge = $("connectionBadge");
+      badge.textContent = text;
+      badge.className = "pill";
+      if (type === "ready") badge.classList.add("ready");
+      if (type === "error") badge.classList.add("error");
+    }
+
+    function setRoleBadge() {
+      const badge = $("roleBadge");
+      if (!adminProfile) {
+        badge.textContent = "غير مصرح";
+        badge.className = "pill error";
+        return;
+      }
+
+      badge.textContent = adminProfile.role || "ADMIN";
+      badge.className = "pill";
+      if (adminProfile.role === "SUPER_ADMIN") badge.classList.add("super");
+      else badge.classList.add("ready");
+    }
+
+    function showTab(id, button) {
+      document.querySelectorAll(".section").forEach((el) => el.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach((el) => el.classList.remove("active"));
+      $(id).classList.add("active");
+      if (button) button.classList.add("active");
+    }
+
+    async function init() {
+      $("appTitle").textContent = APP_CONFIG.APP_NAME || "Emergency Room Parking";
+
+      if (!isConfigReady()) {
+        setConnection("Supabase غير مفعّل", "error");
+        showSetupWarning("لم يتم إعداد Supabase بعد. ضعي SUPABASE_URL و SUPABASE_ANON_KEY بعد تشغيل schema.sql.", "error");
+        return;
+      }
+
+      supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+      setConnection("Supabase جاهز", "ready");
+
+      const sessionResponse = await supabaseClient.auth.getSession();
+      const session = sessionResponse.data?.session;
+
+      if (!session?.user) {
+        showSetupWarning("يجب تسجيل الدخول أولًا من صفحة login.html.", "error");
+        setTimeout(() => {
+          window.location.href = "./login.html";
+        }, 1200);
+        return;
+      }
+
+      await verifyAdmin();
+      setupRoleUi();
+      await refreshAll();
+      subscribeRealtime();
+    }
+
+    async function verifyAdmin() {
+      const { data, error } = await supabaseClient.rpc("get_my_admin_profile");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data || data.ok !== true) {
+        showSetupWarning(data?.message || "هذا المستخدم غير مصرح له بدخول الإدارة.", "error");
+        setRoleBadge();
+        return;
+      }
+
+      adminProfile = data;
+      $("adminLine").textContent = `مرحبًا ${data.full_name || data.email} — ${data.role}`;
+      setRoleBadge();
+    }
+
+    function hasPermission(key) {
+      if (adminProfile?.role === "SUPER_ADMIN") return true;
+      return adminProfile?.permissions?.[key] === true;
+    }
+
+    function setupRoleUi() {
+      const isSuper = adminProfile?.role === "SUPER_ADMIN";
+      const canManageLimits = hasPermission("can_manage_limits");
+
+      $("limitFormBox").style.display = canManageLimits ? "grid" : "none";
+      $("adminFormBox").style.display = isSuper ? "block" : "none";
+      $("saveAdminButton").style.display = isSuper ? "inline-flex" : "none";
+
+      $("superOnlyLimitNotice").classList.toggle("hidden", canManageLimits);
+      $("superOnlyAdminNotice").classList.toggle("hidden", isSuper);
+
+      applyRoleDefaultPermissions();
+    }
+
+    async function refreshAll() {
+      if (!supabaseClient || !adminProfile) return;
+
+      await Promise.all([
+        loadRegistrations(),
+        loadLimits(),
+        loadLogs(),
+        loadViolations(),
+        loadAdmins(),
+        loadAudit()
+      ]);
+
+      renderOverview();
+      showToast("تم تحديث البيانات.", "ok");
+    }
+
+    async function loadRegistrations() {
+      const { data, error } = await supabaseClient
+        .from("employee_registrations")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(300);
+
+      if (error) {
+        showToast("فشل تحميل طلبات التسجيل: " + error.message, "error");
+        return;
+      }
+
+      registrationsData = data || [];
+      renderRegistrations();
+      renderOverview();
+    }
+
+    async function loadLimits() {
+      const { data, error } = await supabaseClient
+        .from("specialty_daily_limits")
+        .select("*")
+        .order("specialty_name", { ascending: true });
+
+      if (error) {
+        showToast("فشل تحميل حدود الاختصاصات: " + error.message, "error");
+        return;
+      }
+
+      limitsData = data || [];
+      renderLimits();
+      renderOverview();
+    }
+
+    async function loadLogs() {
+      const { data, error } = await supabaseClient
+        .from("gate_access_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (error) {
+        showToast("فشل تحميل سجلات الدخول: " + error.message, "error");
+        return;
+      }
+
+      logsData = data || [];
+      renderLogs();
+      renderOverview();
+    }
+
+    async function loadViolations() {
+      const { data, error } = await supabaseClient
+        .from("violation_reports")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(300);
+
+      if (error) {
+        showToast("فشل تحميل البلاغات: " + error.message, "error");
+        return;
+      }
+
+      violationsData = data || [];
+      renderViolations();
+      renderOverview();
+    }
+
+    async function loadAdmins() {
+      const { data, error } = await supabaseClient
+        .from("admin_profiles")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) {
+        showToast("فشل تحميل المشرفين: " + error.message, "error");
+        return;
+      }
+
+      adminsData = data || [];
+      renderAdmins();
+    }
+
+    async function loadAudit() {
+      const { data, error } = await supabaseClient
+        .from("admin_audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(300);
+
+      if (error) {
+        showToast("فشل تحميل Audit: " + error.message, "error");
+        return;
+      }
+
+      auditData = data || [];
+      renderAudit();
+    }
+
+    function renderRegistrations() {
+      const body = $("registrationsBody");
+
+      if (!registrationsData.length) {
+        body.innerHTML = `<tr><td colspan="8">لا توجد طلبات حتى الآن.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = registrationsData.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.full_name)}</td>
+          <td>${escapeHtml(row.employee_id)}</td>
+          <td>${escapeHtml(row.mobile_number)}</td>
+          <td>${escapeHtml(row.specialty)}</td>
+          <td>${statusBadge(row.status)}</td>
+          <td>${row.first_entry_used ? `<span class="badge yellow">مستخدم</span><br><span class="small-muted">${formatDate(row.first_entry_at)}</span>` : `<span class="badge blue">غير مستخدم</span>`}</td>
+          <td>${formatDate(row.created_at)}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-green" onclick="updateRegistration('${row.id}', 'APPROVED')" ${row.status === "APPROVED" || !hasPermission("can_approve_requests") ? "disabled" : ""}>موافقة</button>
+              <button class="btn-red" onclick="updateRegistration('${row.id}', 'REJECTED')" ${row.status === "REJECTED" || !hasPermission("can_approve_requests") ? "disabled" : ""}>رفض</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderLimits() {
+      const body = $("limitsBody");
+
+      if (!limitsData.length) {
+        body.innerHTML = `<tr><td colspan="5">لا توجد حدود بعد.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = limitsData.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.specialty_name)}</td>
+          <td>${Number(row.daily_limit || 0)}</td>
+          <td>${row.is_active ? `<span class="badge green">مفعّل</span>` : `<span class="badge red">غير مفعّل</span>`}</td>
+          <td>${formatDate(row.updated_at)}</td>
+          <td>
+            <button class="btn-soft" onclick="fillLimit('${escapeAttr(row.specialty_name)}', ${Number(row.daily_limit || 0)}, ${row.is_active ? "true" : "false"})">اختيار</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderLogs() {
+      const body = $("logsBody");
+
+      if (!logsData.length) {
+        body.innerHTML = `<tr><td colspan="7">لا توجد سجلات حتى الآن.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = logsData.map((row) => `
+        <tr>
+          <td>${formatDate(row.created_at)}</td>
+          <td>${escapeHtml(row.full_name)}</td>
+          <td>${escapeHtml(row.employee_id)}</td>
+          <td>${escapeHtml(row.mobile_number)}</td>
+          <td>${escapeHtml(row.specialty)}</td>
+          <td>${statusBadge(row.result)}</td>
+          <td>${escapeHtml(row.reason || "-")}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderViolations() {
+      const body = $("violationsBody");
+
+      if (!violationsData.length) {
+        body.innerHTML = `<tr><td colspan="6">لا توجد بلاغات حتى الآن.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = violationsData.map((row) => `
+        <tr>
+          <td>
+            <a href="${escapeHtml(row.photo_url)}" target="_blank" rel="noopener">
+              <img class="photo-thumb" src="${escapeHtml(row.photo_url)}" alt="صورة بلاغ" />
+            </a>
+          </td>
+          <td>${escapeHtml(row.employee_id || "-")}</td>
+          <td style="white-space:normal; min-width:220px">${escapeHtml(row.note || "-")}</td>
+          <td>${statusBadge(row.status)}</td>
+          <td>${formatDate(row.created_at)}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-soft" onclick="updateViolation('${row.id}', 'REVIEWED')">تمت المراجعة</button>
+              <button class="btn-green" onclick="updateViolation('${row.id}', 'RESOLVED')">تم الحل</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function permissionSummary(permissions) {
+      const p = permissions || {};
+      const labels = [];
+      if (p.can_approve_requests) labels.push("طلبات");
+      if (p.can_review_violations) labels.push("بلاغات");
+      if (p.can_view_logs) labels.push("سجلات");
+      if (p.can_export_csv) labels.push("CSV");
+      if (p.can_manage_limits) labels.push("حدود");
+      if (p.can_view_audit) labels.push("Audit");
+      return labels.length ? labels.join("، ") : "بدون مهام";
+    }
+
+    function renderAdmins() {
+      const body = $("adminsBody");
+
+      if (!adminsData.length) {
+        body.innerHTML = `<tr><td colspan="8">لا يوجد مشرفون حتى الآن.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = adminsData.map((row) => `
+        <tr>
+          <td dir="ltr" style="text-align:left">${escapeHtml(row.email)}</td>
+          <td>${escapeHtml(row.full_name || "-")}</td>
+          <td dir="ltr" style="text-align:left">${escapeHtml(row.phone_number || "-")}</td>
+          <td>${row.role === "SUPER_ADMIN" ? `<span class="badge yellow">SUPER_ADMIN</span>` : `<span class="badge blue">SUB_ADMIN</span>`}</td>
+          <td>${row.is_active ? `<span class="badge green">مفعّل</span>` : `<span class="badge red">معطّل</span>`}</td>
+          <td style="white-space:normal; min-width:220px">${escapeHtml(permissionSummary(row.permissions))}</td>
+          <td>${formatDate(row.created_at)}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-soft" onclick="fillAdminByIndex(${adminsData.indexOf(row)})">تعديل</button>
+              <button class="btn-yellow" onclick="disableAdmin('${row.id}')">تعطيل</button>
+              <button class="btn-red" onclick="deleteAdmin('${row.id}')">حذف</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderAudit() {
+      const body = $("auditBody");
+
+      if (!auditData.length) {
+        body.innerHTML = `<tr><td colspan="5">لا يوجد Audit حتى الآن.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = auditData.map((row) => `
+        <tr>
+          <td>${formatDate(row.created_at)}</td>
+          <td>${escapeHtml(row.action)}</td>
+          <td>${escapeHtml(row.target_table || "-")}</td>
+          <td>${escapeHtml(row.target_id || "-")}</td>
+          <td style="white-space:normal; min-width:260px" dir="ltr">${escapeHtml(JSON.stringify(row.details || {}))}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderOverview() {
+      const now = new Date();
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+
+      const last30 = logsData.filter((row) => new Date(row.created_at) >= thirtyDaysAgo);
+      const last24 = logsData.filter((row) => new Date(row.created_at) >= dayAgo);
+      const last10 = logsData.filter((row) => new Date(row.created_at) >= tenMinutesAgo);
+      const pending = registrationsData.filter((row) => row.status === "PENDING").length;
+      const newViolations = violationsData.filter((row) => row.status === "NEW").length;
+
+      $("stat30Days").textContent = last30.length;
+      $("stat24Hours").textContent = last24.length;
+      $("statPending").textContent = pending;
+      $("statNewViolations").textContent = newViolations;
+
+      const results = ["ALLOWED", "LIMITED", "DENIED", "PENDING_FIRST_ENTRY"];
+      $("last10Body").innerHTML = results.map((result) => {
+        const count = last10.filter((row) => row.result === result).length;
+        return `<tr><td>${statusBadge(result)}</td><td>${count}</td></tr>`;
+      }).join("");
+
+      const specialtyCounts = {};
+      logsData.forEach((row) => {
+        const key = row.specialty || "غير محدد";
+        specialtyCounts[key] = (specialtyCounts[key] || 0) + 1;
+      });
+
+      const specialtyRows = Object.entries(specialtyCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20);
+
+      $("specialtyStatsBody").innerHTML = specialtyRows.length
+        ? specialtyRows.map(([specialty, count]) => `<tr><td>${escapeHtml(specialty)}</td><td>${count}</td></tr>`).join("")
+        : `<tr><td colspan="2">لا توجد بيانات بعد.</td></tr>`;
+
+      const todayLimited = logsData.filter((row) => (
+        row.result === "LIMITED" &&
+        new Date(row.created_at) >= todayStart
+      ));
+
+      $("limitsUsageBody").innerHTML = limitsData.length
+        ? limitsData.map((limit) => {
+            const used = todayLimited.filter((log) => log.specialty === limit.specialty_name).length;
+            const max = Number(limit.daily_limit || 0);
+            const remaining = Math.max(max - used, 0);
+            return `
+              <tr>
+                <td>${escapeHtml(limit.specialty_name)}</td>
+                <td>${max}</td>
+                <td>${used}</td>
+                <td>${remaining}</td>
+                <td>${limit.is_active ? statusBadge(remaining > 0 ? "ACTIVE" : "FULL") : `<span class="badge red">غير مفعّل</span>`}</td>
+              </tr>
+            `;
+          }).join("")
+        : `<tr><td colspan="5">لا توجد حدود بعد.</td></tr>`;
+    }
+
+    async function updateRegistration(id, status) {
+      if (!confirm(status === "APPROVED" ? "تأكيد الموافقة على الطلب؟" : "تأكيد رفض الطلب؟")) return;
+
+      const { data, error } = await supabaseClient.rpc("admin_update_registration_status", {
+        p_registration_id: id,
+        p_status: status
+      });
+
+      if (error || !data || data.ok !== true) {
+        showToast(error?.message || data?.message || "فشل تحديث الطلب.", "error");
+        return;
+      }
+
+      showToast(data.message || "تم تحديث الطلب.", "ok");
+      await loadRegistrations();
+      await loadAudit();
+    }
+
+    function escapeAttr(value) {
+      return String(value ?? "").replaceAll("\\", "\\\\").replaceAll("'", "\\'").replaceAll('"', "&quot;");
+    }
+
+    function fillLimit(name, count, active) {
+      $("limitSpecialty").value = name;
+      $("limitCount").value = count;
+      $("limitActive").value = active ? "true" : "false";
+      showToast("تم اختيار الاختصاص للتعديل.", "ok");
+    }
+
+    async function saveLimit() {
+      if (!hasPermission("can_manage_limits")) {
+        showToast("غير مصرح لك بتعديل حدود الاختصاصات.", "error");
+        return;
+      }
+
+      const name = $("limitSpecialty").value.trim();
+      const count = Number($("limitCount").value || 0);
+      const active = $("limitActive").value === "true";
+
+      const { data, error } = await supabaseClient.rpc("admin_upsert_specialty_limit", {
+        p_specialty_name: name,
+        p_daily_limit: count,
+        p_is_active: active
+      });
+
+      if (error || !data || data.ok !== true) {
+        showToast(error?.message || data?.message || "فشل حفظ الحد.", "error");
+        return;
+      }
+
+      showToast(data.message || "تم حفظ الحد.", "ok");
+      $("limitSpecialty").value = "";
+      $("limitCount").value = 0;
+      $("limitActive").value = "true";
+      await loadLimits();
+      await loadAudit();
+    }
+
+
+    function getAdminPermissionsFromForm() {
+      return {
+        can_approve_requests: $("permApprove").checked,
+        can_review_violations: $("permViolations").checked,
+        can_view_logs: $("permLogs").checked,
+        can_export_csv: $("permExport").checked,
+        can_manage_limits: $("permLimits").checked,
+        can_view_audit: $("permAudit").checked
+      };
+    }
+
+    function setPermissionCheckboxes(permissions) {
+      const p = permissions || {};
+      $("permApprove").checked = !!p.can_approve_requests;
+      $("permViolations").checked = !!p.can_review_violations;
+      $("permLogs").checked = !!p.can_view_logs;
+      $("permExport").checked = !!p.can_export_csv;
+      $("permLimits").checked = !!p.can_manage_limits;
+      $("permAudit").checked = !!p.can_view_audit;
+    }
+
+    function applyRoleDefaultPermissions() {
+      const role = $("adminRole")?.value || "SUB_ADMIN";
+      if (role === "SUPER_ADMIN") {
+        setPermissionCheckboxes({
+          can_approve_requests: true,
+          can_review_violations: true,
+          can_view_logs: true,
+          can_export_csv: true,
+          can_manage_limits: true,
+          can_view_audit: true
+        });
+      } else {
+        setPermissionCheckboxes({
+          can_approve_requests: true,
+          can_review_violations: true,
+          can_view_logs: true,
+          can_export_csv: false,
+          can_manage_limits: false,
+          can_view_audit: false
+        });
+      }
+    }
+
+    function clearAdminForm() {
+      $("adminEmail").value = "";
+      $("adminName").value = "";
+      $("adminPhone").value = "";
+      $("adminRole").value = "SUB_ADMIN";
+      $("adminActive").value = "true";
+      applyRoleDefaultPermissions();
+    }
+
+    function fillAdminByIndex(index) {
+      const row = adminsData[index];
+      if (!row) return;
+      $("adminEmail").value = row.email || "";
+      $("adminName").value = row.full_name || "";
+      $("adminPhone").value = row.phone_number || "";
+      $("adminRole").value = row.role || "SUB_ADMIN";
+      $("adminActive").value = row.is_active ? "true" : "false";
+      setPermissionCheckboxes(row.permissions || {});
+      showToast("تم تحميل بيانات المشرف للتعديل.", "ok");
+    }
+
+
+    async function saveAdmin() {
+      if (adminProfile?.role !== "SUPER_ADMIN") {
+        showToast("هذه العملية للسوبر أدمن فقط.", "error");
+        return;
+      }
+
+      const payload = {
+        p_email: $("adminEmail").value.trim(),
+        p_full_name: $("adminName").value.trim(),
+        p_phone_number: $("adminPhone").value.trim(),
+        p_role: $("adminRole").value,
+        p_is_active: $("adminActive").value === "true",
+        p_permissions: getAdminPermissionsFromForm()
+      };
+
+      const { data, error } = await supabaseClient.rpc("super_admin_upsert_admin_profile", payload);
+
+      if (error || !data || data.ok !== true) {
+        showToast(error?.message || data?.message || "فشل حفظ المشرف.", "error");
+        return;
+      }
+
+      showToast(data.message || "تم حفظ المشرف.", "ok");
+      clearAdminForm();
+      await loadAdmins();
+      await loadAudit();
+    }
+
+
+    async function disableAdmin(id) {
+      if (adminProfile?.role !== "SUPER_ADMIN") {
+        showToast("هذه العملية للسوبر أدمن فقط.", "error");
+        return;
+      }
+
+      if (!confirm("تعطيل هذا المشرف؟ سيبقى موجودًا في السجل لكن لن يستطيع الدخول.")) return;
+
+      const { data, error } = await supabaseClient.rpc("super_admin_disable_admin_profile", {
+        p_admin_profile_id: id
+      });
+
+      if (error || !data || data.ok !== true) {
+        showToast(error?.message || data?.message || "فشل تعطيل المشرف.", "error");
+        return;
+      }
+
+      showToast(data.message || "تم تعطيل المشرف.", "ok");
+      await loadAdmins();
+      await loadAudit();
+    }
+
+    async function deleteAdmin(id) {
+      if (adminProfile?.role !== "SUPER_ADMIN") {
+        showToast("هذه العملية للسوبر أدمن فقط.", "error");
+        return;
+      }
+
+      if (!confirm("حذف هذا المشرف من لوحة الإدارة؟ لن يتم حذف مستخدم Supabase Auth نفسه.")) return;
+
+      const { data, error } = await supabaseClient.rpc("super_admin_delete_admin_profile", {
+        p_admin_profile_id: id
+      });
+
+      if (error || !data || data.ok !== true) {
+        showToast(error?.message || data?.message || "فشل حذف المشرف.", "error");
+        return;
+      }
+
+      showToast(data.message || "تم حذف المشرف.", "ok");
+      await loadAdmins();
+      await loadAudit();
+    }
+
+
+    async function updateViolation(id, status) {
+      const { data, error } = await supabaseClient.rpc("admin_update_violation_status", {
+        p_violation_id: id,
+        p_status: status
+      });
+
+      if (error || !data || data.ok !== true) {
+        showToast(error?.message || data?.message || "فشل تحديث البلاغ.", "error");
+        return;
+      }
+
+      showToast(data.message || "تم تحديث البلاغ.", "ok");
+      await loadViolations();
+      await loadAudit();
+    }
+
+    function csvEscape(value) {
+      const str = String(value ?? "");
+      if (/[",\n]/.test(str)) return `"${str.replaceAll('"', '""')}"`;
+      return str;
+    }
+
+    function downloadCsv(filename, rows) {
+      if (!rows.length) {
+        showToast("لا توجد بيانات للتصدير.", "error");
+        return;
+      }
+
+      const headers = Object.keys(rows[0]);
+      const csv = [
+        headers.map(csvEscape).join(","),
+        ...rows.map((row) => headers.map((key) => csvEscape(row[key])).join(","))
+      ].join("\n");
+
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCsv(type) {
+      if (!hasPermission("can_export_csv")) {
+        showToast("غير مصرح لك بتصدير CSV.", "error");
+        return;
+      }
+
+      if (type === "registrations") return downloadCsv("employee_registrations.csv", registrationsData);
+      if (type === "logs") return downloadCsv("gate_access_logs.csv", logsData);
+      if (type === "violations") return downloadCsv("violation_reports.csv", violationsData);
+      if (type === "limits") return downloadCsv("specialty_daily_limits.csv", limitsData);
+      if (type === "admins") return downloadCsv("admin_profiles.csv", adminsData);
+      if (type === "audit") return downloadCsv("admin_audit_logs.csv", auditData);
+    }
+
+    function subscribeRealtime() {
+      if (!supabaseClient || !adminProfile) return;
+
+      supabaseClient
+        .channel("admin-dashboard-realtime")
+        .on("postgres_changes", { event: "*", schema: "public", table: "employee_registrations" }, () => loadRegistrations())
+        .on("postgres_changes", { event: "*", schema: "public", table: "gate_access_logs" }, () => loadLogs())
+        .on("postgres_changes", { event: "*", schema: "public", table: "violation_reports" }, () => loadViolations())
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            setConnection("Realtime متصل", "ready");
+          }
+
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            setConnection("Realtime غير مستقر", "error");
+            showToast("Realtime غير مستقر، استخدمي زر تحديث عند الحاجة.", "error");
+          }
+        });
+    }
+
+    async function logout() {
+      if (!supabaseClient) return;
+      await supabaseClient.auth.signOut();
+      window.location.href = "./login.html";
+    }
+
+    window.addEventListener("error", (event) => {
+      showToast("خطأ في الصفحة: " + event.message, "error");
+    });
+
+    init().catch((err) => {
+      setConnection("خطأ", "error");
+      showSetupWarning("تعذر تشغيل لوحة الإدارة: " + err.message, "error");
+    });
+  </script>
+</body>
+</html>

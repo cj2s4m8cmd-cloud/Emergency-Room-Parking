@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>شاشة الحارس | Emergency Room Parking</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+
+  <!-- Supabase + QR libraries via CDN: no npm, no build, works as static HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #020813;
+      --bg2: #06101f;
+      --panel: rgba(15, 23, 42, 0.76);
+      --panel2: rgba(2, 8, 19, 0.72);
+      --line: rgba(148, 163, 184, 0.22);
+      --text: #e5f2ff;
+      --muted: #9fb3c8;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --shadow-blue: 0 0 42px rgba(56, 189, 248, 0.20);
+      --shadow-green: 0 0 52px rgba(34, 197, 94, 0.42);
+      --shadow-red: 0 0 52px rgba(239, 68, 68, 0.42);
+      --shadow-yellow: 0 0 52px rgba(250, 204, 21, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(56, 189, 248, 0.18), transparent 34%),
+        radial-gradient(circle at 85% 5%, rgba(34, 197, 94, 0.12), transparent 30%),
+        linear-gradient(180deg, #020813 0%, #06101f 46%, #000 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: #a7f3d0;
+    }
+
+    .app-shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.26), rgba(34, 197, 94, 0.14));
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: var(--shadow-blue);
+      font-size: 23px;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(19px, 4vw, 29px);
+      letter-spacing: -0.03em;
+      font-weight: 900;
+    }
+
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.72);
+      color: var(--muted);
+      padding: 10px 14px;
+      border-radius: 999px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.06);
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .pill.ready {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.32);
+    }
+
+    .pill.error {
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.36);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 920px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 20px;
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow-blue);
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 28%, transparent 70%, rgba(56, 189, 248, 0.08));
+      opacity: 0.5;
+    }
+
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .qr-panel {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 560px;
+    }
+
+    .qr-stage {
+      width: min(340px, 100%);
+      margin: 0 auto;
+      padding: 16px;
+      border-radius: 28px;
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      background: rgba(2, 8, 19, 0.52);
+      box-shadow: inset 0 0 25px rgba(56, 189, 248, 0.08);
+    }
+
+    #qrCanvas {
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 14px;
+      width: 288px !important;
+      height: 288px !important;
+      max-width: 100%;
+      box-shadow: 0 0 28px rgba(255, 255, 255, 0.08);
+    }
+
+    .qr-title {
+      margin: 0 0 12px;
+      font-size: clamp(22px, 5vw, 34px);
+      font-weight: 900;
+    }
+
+    .qr-caption {
+      color: var(--muted);
+      margin: 12px 0;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .qr-link {
+      display: block;
+      direction: ltr;
+      text-align: center;
+      word-break: break-all;
+      color: #a7f3d0;
+      background: rgba(2, 8, 19, 0.52);
+      border: 1px solid rgba(34, 197, 94, 0.18);
+      border-radius: 14px;
+      padding: 10px;
+      margin: 12px 0;
+      font-size: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button,
+    .btn {
+      border: 0;
+      outline: 0;
+      cursor: pointer;
+      color: white;
+      font-weight: 900;
+      border-radius: 16px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.16);
+      transition: transform 0.15s ease, filter 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    button:hover,
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-green {
+      background: linear-gradient(135deg, #15803d, #22c55e);
+    }
+
+    .btn-red {
+      background: linear-gradient(135deg, #991b1b, #ef4444);
+    }
+
+    .btn-yellow {
+      background: linear-gradient(135deg, #a16207, #facc15);
+      color: #111827;
+    }
+
+    .decision-panel {
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-width: 2px;
+      border-color: rgba(56, 189, 248, 0.34);
+      transition: all 0.25s ease;
+    }
+
+    .decision-panel.ready {
+      box-shadow: var(--shadow-blue);
+      border-color: rgba(56, 189, 248, 0.42);
+    }
+
+    .decision-panel.allowed {
+      box-shadow: var(--shadow-green);
+      border-color: rgba(34, 197, 94, 0.72);
+    }
+
+    .decision-panel.denied {
+      box-shadow: var(--shadow-red);
+      border-color: rgba(239, 68, 68, 0.72);
+    }
+
+    .decision-panel.limited {
+      box-shadow: var(--shadow-yellow);
+      border-color: rgba(250, 204, 21, 0.78);
+    }
+
+    .status-orb {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      font-size: 46px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.32), rgba(56, 189, 248, 0.06));
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.24);
+    }
+
+    .allowed .status-orb {
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.38), rgba(34, 197, 94, 0.06));
+      border-color: rgba(34, 197, 94, 0.62);
+      box-shadow: 0 0 46px rgba(34, 197, 94, 0.35);
+    }
+
+    .denied .status-orb {
+      background: radial-gradient(circle, rgba(239, 68, 68, 0.38), rgba(239, 68, 68, 0.06));
+      border-color: rgba(239, 68, 68, 0.62);
+      box-shadow: 0 0 46px rgba(239, 68, 68, 0.35);
+    }
+
+    .limited .status-orb {
+      background: radial-gradient(circle, rgba(250, 204, 21, 0.42), rgba(250, 204, 21, 0.06));
+      border-color: rgba(250, 204, 21, 0.72);
+      box-shadow: 0 0 46px rgba(250, 204, 21, 0.31);
+    }
+
+    .decision-title {
+      margin: 0;
+      text-align: center;
+      font-size: clamp(30px, 6vw, 54px);
+      font-weight: 950;
+      letter-spacing: -0.04em;
+      line-height: 1.18;
+    }
+
+    .decision-message {
+      max-width: 520px;
+      text-align: center;
+      margin: 18px auto 0;
+      font-size: clamp(16px, 3.4vw, 23px);
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .employee-line {
+      margin-top: 18px;
+      text-align: center;
+      color: #bae6fd;
+      font-weight: 900;
+      min-height: 26px;
+    }
+
+    .countdown {
+      display: inline-grid;
+      place-items: center;
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      margin: 12px auto 0;
+      color: #dff7ff;
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      background: rgba(2, 8, 19, 0.55);
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .notice {
+      margin: 14px 0;
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(250, 204, 21, 0.36);
+      background: rgba(250, 204, 21, 0.10);
+      color: #fef3c7;
+      line-height: 1.7;
+    }
+
+    .notice.error {
+      border-color: rgba(239, 68, 68, 0.42);
+      background: rgba(239, 68, 68, 0.10);
+      color: #fecaca;
+    }
+
+    .notice.ok {
+      border-color: rgba(34, 197, 94, 0.38);
+      background: rgba(34, 197, 94, 0.10);
+      color: #bbf7d0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .violation-panel {
+      margin-top: 16px;
+    }
+
+    .violation-panel h2 {
+      margin-top: 0;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 760px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 5px 0;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: #08111f;
+      color: var(--text);
+      border-radius: 16px;
+      padding: 13px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.08);
+    }
+
+    .file-input {
+      border-style: dashed;
+    }
+
+    .mini {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+
+
+
+    .app-hero-cover {
+      position: relative;
+      min-height: 220px;
+      margin: 0 0 16px;
+      border-radius: 30px;
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      background:
+        linear-gradient(90deg, rgba(2, 8, 19, 0.92), rgba(2, 8, 19, 0.56), rgba(2, 8, 19, 0.24)),
+        url("./hero.jpeg") center center / cover no-repeat;
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.18);
+    }
+
+    .app-hero-cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(56, 189, 248, 0.20), transparent 34%),
+        linear-gradient(180deg, transparent, rgba(2, 8, 19, 0.72));
+    }
+
+    .app-hero-content {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 100%);
+      min-height: 220px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .app-hero-kicker {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(239, 68, 68, 0.36);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fecaca;
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .app-hero-title {
+      margin: 0;
+      font-size: clamp(26px, 6vw, 46px);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 1.1;
+      color: #f8fbff;
+      text-shadow: 0 0 24px rgba(2, 8, 19, 0.80);
+    }
+
+    .app-hero-subtitle {
+      margin: 9px 0 0;
+      color: rgba(224, 242, 254, 0.86);
+      line-height: 1.75;
+      font-size: 14px;
+      text-shadow: 0 0 18px rgba(2, 8, 19, 0.80);
+    }
+
+    @media (max-width: 700px) {
+      .app-hero-cover,
+      .app-hero-content {
+        min-height: 190px;
+      }
+    }
+
+
+    .hospital-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 20px;
+      background: rgba(2, 8, 19, 0.42);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
+    }
+
+    .hospital-logo {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.16);
+      background: #020813;
+      flex: 0 0 auto;
+    }
+
+    .hospital-name-ar {
+      font-size: 14px;
+      font-weight: 900;
+      color: #e0f2fe;
+      line-height: 1.45;
+    }
+
+    .hospital-name-en {
+      direction: ltr;
+      text-align: left;
+      font-size: 12px;
+      color: rgba(186, 230, 253, 0.76);
+      margin-top: 3px;
+      letter-spacing: 0.02em;
+    }
+
+    .permission-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .permission-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .permission-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(2, 8, 19, 0.42);
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .permission-box input {
+      width: auto;
+      accent-color: #38bdf8;
+      margin: 0;
+    }
+
+    .creator-signature {
+      width: min(1180px, 100%);
+      margin: 14px auto 0;
+      padding: 0 4px 2px;
+      display: flex;
+      justify-content: flex-start;
+      direction: ltr;
+    }
+
+    .creator-signature-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 10px 14px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(2, 8, 19, 0.72), rgba(15, 23, 42, 0.58));
+      border: 1px solid rgba(56, 189, 248, 0.20);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.10);
+      backdrop-filter: blur(18px);
+    }
+
+    .creator-label {
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(186, 230, 253, 0.76);
+      font-weight: 800;
+    }
+
+    .creator-name {
+      font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
+      font-size: clamp(16px, 3.2vw, 22px);
+      color: #e0f2fe;
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.42);
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .bottom-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">🛡️</div>
+        <div>
+          <h1 class="brand-title" id="appTitle">Emergency Room Parking</h1>
+          <div class="brand-subtitle">شاشة الحارس — QR متغير كل 30 ثانية، ونتيجة واضحة بعد المسح</div>
+        <div class="hospital-identity">
+          <img class="hospital-logo" src="./logo.jpeg" alt="Al-Bashir Hospital Emergency Department" />
+          <div>
+            <div class="hospital-name-ar">مستشفى الإسعاف والطوارئ / البشير</div>
+            <div class="hospital-name-en">Al-Bashir Hospital Emergency Department</div>
+          </div>
+        </div>
+
+        </div>
+      </div>
+      <div class="pill" id="connectionBadge">جارِ فحص الاتصال...</div>
+    </header>
+
+    
+    <section class="app-hero-cover" aria-label="Emergency Room Parking interface image">
+      <div class="app-hero-content">
+        <span class="app-hero-kicker">Emergency Room Parking</span>
+        <h2 class="app-hero-title">بوابة كراج الطوارئ</h2>
+        <p class="app-hero-subtitle">دخول منظم عبر QR مباشر لكل موظف، مشرف، وسوبر أدمن عند كل دخول.</p>
+      </div>
+    </section>
+
+<div id="setupWarning" class="notice hidden"></div>
+
+    <section class="main-grid">
+      <div class="panel qr-panel">
+        <h2 class="qr-title">اعرض الكود للموظف</h2>
+
+        <div class="qr-stage">
+          <canvas id="qrCanvas" aria-label="QR Code"></canvas>
+          <a id="qrLink" class="qr-link" href="#" target="_blank" rel="noopener">جارِ تجهيز الرابط...</a>
+        </div>
+
+        <p class="qr-caption">
+          لا يحتاج الحارس لإدخال بيانات. الموظف يمسح الكود، ثم تظهر النتيجة هنا.
+        </p>
+        <div class="notice ok">
+          <strong>تنبيه مهم:</strong>
+          هذا QR مباشر فقط، يتغير كل 30 ثانية ويُستخدم مرة واحدة. تصوير الشاشة لا يعطي صلاحية لاحقة للدخول.
+        </div>
+
+
+        <div class="countdown" id="qrCountdown">30</div>
+
+        <div class="button-row">
+          <button type="button" onclick="copyQrLink()">نسخ الرابط</button>
+          <button type="button" onclick="openQrLink()">فتح الرابط</button>
+          <button type="button" class="btn-green" onclick="refreshQrNow()">QR جديد</button>
+        </div>
+
+        <div class="bottom-nav">
+          <a class="btn" href="./verify.html">رابط تسجيل الموظفين</a>
+          <a class="btn" href="./login.html">دخول الإدارة</a>
+        </div>
+      </div>
+
+      <div class="panel decision-panel ready" id="decisionPanel">
+        <div class="status-orb" id="statusIcon">◆</div>
+        <h2 class="decision-title" id="decisionTitle">الكود جاهز للمسح</h2>
+        <p class="decision-message" id="decisionMessage">
+          تظهر هنا نتيجة مسح الموظف: مسموح، مرفوض، أو مسموح جزئيًا.
+        </p>
+        <div class="employee-line" id="employeeLine"></div>
+      </div>
+    </section>
+
+    <section class="panel violation-panel">
+      <h2>تسجيل مخالفة بصورة</h2>
+      <p class="mini">
+        يستخدمها الحارس عند حدوث مخالفة. رقم الموظف والملاحظة اختياريان، لكن الصورة مطلوبة.
+        البلاغ يظهر مباشرة في صفحة الأدمن.
+      </p>
+
+      <div class="form-grid">
+        <div>
+          <label for="violationEmployee">رقم الموظف إن وجد</label>
+          <input id="violationEmployee" type="text" placeholder="اختياري" inputmode="numeric" />
+
+          <label for="violationPhoto">التقاط / رفع صورة</label>
+          <input id="violationPhoto" class="file-input" type="file" accept="image/*" capture="environment" />
+        </div>
+
+        <div>
+          <label for="violationNote">ملاحظة قصيرة</label>
+          <textarea id="violationNote" placeholder="اختياري"></textarea>
+        </div>
+      </div>
+
+      <div class="button-row" style="justify-content:flex-start">
+        <button type="button" class="btn-red" id="violationButton" onclick="submitViolationReport()">إرسال المخالفة للأدمن</button>
+      </div>
+
+      <div id="violationResult" class="notice hidden"></div>
+    </section>
+
+    <footer class="creator-signature" aria-label="Creator signature">
+      <div class="creator-signature-card">
+        <span class="creator-label">Concept &amp; Programming</span>
+        <span class="creator-name">Dr. Alaa Aqrabawi</span>
+      </div>
+    </footer>
+
+  </main>
+
+  <script>
+    // =========================================================
+    // CONFIG
+    // بدلي هذه القيم بعد إنشاء Supabase و Netlify.
+    // لا تضعي service_role هنا أبدًا.
+    // =========================================================
+    const APP_CONFIG = {
+      APP_NAME: "Emergency Room Parking",
+      SUPABASE_URL: "https://hnsbsvwxxxysjnhgtinl.supabase.co",
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhuc2Jzdnd4eHh5c2puaGd0aW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTMwNjAsImV4cCI6MjA5ODQyOTA2MH0.QtzYlzjmoGNvjhJhxdGxEwUTKWm0WHGGKn2THSBOgAo",
+      LIVE_SITE_URL: "https://garagey.netlify.app",
+      VERIFY_PATH: "/verify.html"
+    };
+
+    let supabaseClient = null;
+    let currentQrUrl = "";
+    let qrTimer = 30;
+    let qrTimerInterval = null;
+    let qrRefreshInterval = null;
+    let resetTimeout = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function isConfigReady() {
+      return (
+        APP_CONFIG.SUPABASE_URL &&
+        APP_CONFIG.SUPABASE_URL.startsWith("https://") &&
+        !APP_CONFIG.SUPABASE_URL.includes("PASTE_") &&
+        APP_CONFIG.SUPABASE_ANON_KEY &&
+        APP_CONFIG.SUPABASE_ANON_KEY.length > 20 &&
+        !APP_CONFIG.SUPABASE_ANON_KEY.includes("PASTE_")
+      );
+    }
+
+    function liveBaseUrl() {
+      if (
+        APP_CONFIG.LIVE_SITE_URL &&
+        APP_CONFIG.LIVE_SITE_URL.startsWith("https://") &&
+        !APP_CONFIG.LIVE_SITE_URL.includes("PASTE_")
+      ) {
+        return APP_CONFIG.LIVE_SITE_URL.replace(/\/+$/, "");
+      }
+      return window.location.origin;
+    }
+
+    function showSetupWarning(message, type = "warning") {
+      const el = $("setupWarning");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    function setConnection(text, type = "ready") {
+      const badge = $("connectionBadge");
+      badge.textContent = text;
+      badge.className = "pill";
+      if (type === "ready") badge.classList.add("ready");
+      if (type === "error") badge.classList.add("error");
+    }
+
+    function initSupabase() {
+      $("appTitle").textContent = APP_CONFIG.APP_NAME || "Emergency Room Parking";
+
+      if (!isConfigReady()) {
+        setConnection("Supabase غير مفعّل", "error");
+        showSetupWarning(
+          "لم يتم إعداد Supabase بعد. الصفحة لن تنهار، لكن QR سيعمل كرابط عام فقط. بعد تجهيز Supabase، بدلي SUPABASE_URL و SUPABASE_ANON_KEY و LIVE_SITE_URL.",
+          "error"
+        );
+        return;
+      }
+
+      supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+      setConnection("Supabase جاهز", "ready");
+    }
+
+    async function drawQr(url) {
+      currentQrUrl = url;
+      $("qrLink").href = url;
+      $("qrLink").textContent = url;
+
+      await QRCode.toCanvas($("qrCanvas"), url, {
+        width: 288,
+        margin: 3,
+        errorCorrectionLevel: "M",
+        color: {
+          dark: "#020813",
+          light: "#ffffff"
+        }
+      });
+    }
+
+    async function drawFallbackQr() {
+      const url = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl()).toString();
+      await drawQr(url);
+    }
+
+    async function refreshQrNow() {
+      qrTimer = 30;
+      $("qrCountdown").textContent = qrTimer;
+
+      if (!supabaseClient) {
+        await drawFallbackQr();
+        return;
+      }
+
+      try {
+        const { data, error } = await supabaseClient.rpc("create_qr_session");
+
+        if (error || !data || data.ok !== true || !data.token) {
+          console.error("QR session error:", error || data);
+          showSetupWarning(
+            "تعذر إنشاء QR آمن من Supabase. تأكدي أنك شغّلت schema.sql. تم عرض QR عام مؤقتًا بدلًا من ذلك.",
+            "error"
+          );
+          await drawFallbackQr();
+          return;
+        }
+
+        const verifyUrl = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl());
+        verifyUrl.searchParams.set("token", data.token);
+        await drawQr(verifyUrl.toString());
+      } catch (err) {
+        console.error(err);
+        showSetupWarning("حدث خطأ أثناء إنشاء QR. تم عرض QR عام مؤقتًا.", "error");
+        await drawFallbackQr();
+      }
+    }
+
+    function startQrLoop() {
+      refreshQrNow();
+
+      clearInterval(qrRefreshInterval);
+      clearInterval(qrTimerInterval);
+
+      qrRefreshInterval = setInterval(refreshQrNow, 30000);
+
+      qrTimerInterval = setInterval(() => {
+        qrTimer -= 1;
+        if (qrTimer < 0) qrTimer = 30;
+        $("qrCountdown").textContent = qrTimer;
+      }, 1000);
+    }
+
+    function setDecision(status, message, employeeName, employeeId) {
+      const panel = $("decisionPanel");
+      panel.className = "panel decision-panel";
+
+      let title = "الكود جاهز للمسح";
+      let icon = "◆";
+      let css = "ready";
+
+      if (status === "ALLOWED") {
+        title = "مسموح بالدخول";
+        icon = "✓";
+        css = "allowed";
+      } else if (status === "DENIED") {
+        title = "غير مسموح";
+        icon = "×";
+        css = "denied";
+      } else if (status === "LIMITED") {
+        title = "مسموح جزئيًا";
+        icon = "!";
+        css = "limited";
+      }
+
+      panel.classList.add(css);
+      $("statusIcon").textContent = icon;
+      $("decisionTitle").textContent = title;
+      $("decisionMessage").textContent = message || "تظهر هنا نتيجة المسح.";
+      $("employeeLine").textContent = employeeName || employeeId ? `الموظف: ${employeeName || ""} ${employeeId ? " — " + employeeId : ""}` : "";
+    }
+
+    async function resetGuardDisplaySoon() {
+      clearTimeout(resetTimeout);
+
+      resetTimeout = setTimeout(async () => {
+        setDecision("READY", "QR جديد جاهز للمسح.", "", "");
+
+        if (supabaseClient) {
+          try {
+            await supabaseClient.rpc("reset_guard_screen");
+          } catch (err) {
+            console.warn("Reset RPC failed:", err);
+          }
+        }
+
+        await refreshQrNow();
+      }, 6000);
+    }
+
+    function subscribeToGuardStatus() {
+      if (!supabaseClient) return;
+
+      supabaseClient
+        .channel("guard-screen-status")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "guard_screen_status" },
+          (payload) => {
+            const row = payload.new;
+
+            if (!row || row.current_status === "READY") {
+              return;
+            }
+
+            setDecision(
+              row.current_status,
+              row.message,
+              row.employee_name,
+              row.employee_id
+            );
+
+            resetGuardDisplaySoon();
+          }
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            setConnection("Realtime متصل", "ready");
+          }
+
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            setConnection("Realtime غير مستقر", "error");
+            showSetupWarning(
+              "Realtime لم يتصل بشكل مستقر. الصفحة ستبقى تعمل، ويمكن تحديثها يدويًا.",
+              "error"
+            );
+          }
+        });
+    }
+
+    async function copyQrLink() {
+      try {
+        await navigator.clipboard.writeText(currentQrUrl);
+        showSetupWarning("تم نسخ رابط QR.", "ok");
+      } catch {
+        alert(currentQrUrl);
+      }
+    }
+
+    function openQrLink() {
+      window.open(currentQrUrl, "_blank", "noopener,noreferrer");
+    }
+
+    function setViolationMessage(message, type = "warning") {
+      const el = $("violationResult");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    async function submitViolationReport() {
+      if (!supabaseClient) {
+        setViolationMessage("لا يمكن إرسال المخالفة قبل إعداد Supabase.", "error");
+        return;
+      }
+
+      const file = $("violationPhoto").files[0];
+
+      if (!file) {
+        setViolationMessage("الصورة مطلوبة لإرسال البلاغ.", "error");
+        return;
+      }
+
+      const button = $("violationButton");
+      button.disabled = true;
+      button.textContent = "جارِ الإرسال...";
+
+      try {
+        const extension = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `violations/${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`;
+
+        const upload = await supabaseClient
+          .storage
+          .from("violation-photos")
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false
+          });
+
+        if (upload.error) {
+          throw new Error(upload.error.message);
+        }
+
+        const publicUrl = supabaseClient
+          .storage
+          .from("violation-photos")
+          .getPublicUrl(path)
+          .data
+          .publicUrl;
+
+        const { data, error } = await supabaseClient.rpc("submit_violation_report", {
+          p_employee_id: $("violationEmployee").value,
+          p_note: $("violationNote").value,
+          p_photo_url: publicUrl
+        });
+
+        if (error || !data || data.ok !== true) {
+          throw new Error(error?.message || data?.message || "فشل إرسال البلاغ.");
+        }
+
+        setViolationMessage(data.message || "تم إرسال المخالفة إلى الإدارة.", "ok");
+        $("violationEmployee").value = "";
+        $("violationNote").value = "";
+        $("violationPhoto").value = "";
+      } catch (err) {
+        setViolationMessage("فشل إرسال البلاغ: " + err.message, "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = "إرسال المخالفة للأدمن";
+      }
+    }
+
+    initSupabase();
+    startQrLoop();
+    subscribeToGuardStatus();
+  </script>
+</body>
+</html>

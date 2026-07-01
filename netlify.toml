@@ -1,0 +1,25 @@
+# Netlify configuration for Employee Private Parking Access System
+# هذا المشروع Static HTML فقط.
+# لا يحتاج npm ولا build command.
+
+[build]
+  publish = "."
+  command = ""
+
+# Keep all HTML pages directly accessible:
+# /index.html
+# /verify.html
+# /login.html
+# /admin_dashboard.html
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-store"

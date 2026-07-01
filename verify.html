@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تسجيل / تحقق الموظف | Emergency Room Parking</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #020813;
+      --bg2: #06101f;
+      --panel: rgba(15, 23, 42, 0.76);
+      --panel2: rgba(2, 8, 19, 0.72);
+      --line: rgba(148, 163, 184, 0.22);
+      --text: #e5f2ff;
+      --muted: #9fb3c8;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --shadow-blue: 0 0 42px rgba(56, 189, 248, 0.20);
+      --shadow-green: 0 0 52px rgba(34, 197, 94, 0.35);
+      --shadow-red: 0 0 52px rgba(239, 68, 68, 0.35);
+      --shadow-yellow: 0 0 52px rgba(250, 204, 21, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(56, 189, 248, 0.18), transparent 34%),
+        radial-gradient(circle at 85% 5%, rgba(250, 204, 21, 0.10), transparent 30%),
+        linear-gradient(180deg, #020813 0%, #06101f 46%, #000 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: #a7f3d0;
+    }
+
+    .app-shell {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.26), rgba(250, 204, 21, 0.12));
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: var(--shadow-blue);
+      font-size: 23px;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(21px, 5vw, 31px);
+      letter-spacing: -0.03em;
+      font-weight: 950;
+    }
+
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+      line-height: 1.7;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.72);
+      color: var(--muted);
+      padding: 10px 14px;
+      border-radius: 999px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.06);
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .pill.ready {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.32);
+    }
+
+    .pill.error {
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.36);
+    }
+
+    .hero {
+      position: relative;
+      border: 1px solid rgba(56, 189, 248, 0.20);
+      border-radius: 30px;
+      padding: 22px;
+      margin-bottom: 16px;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 8, 19, 0.72)),
+        radial-gradient(circle at 15% 0%, rgba(56, 189, 248, 0.14), transparent 32%);
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow-blue);
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.07), transparent 30%, rgba(56, 189, 248, 0.06));
+    }
+
+    .hero > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: clamp(26px, 6vw, 46px);
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.9;
+      font-size: 15px;
+    }
+
+    .token-box {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      color: #dbeafe;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      background: rgba(2, 8, 19, 0.50);
+      direction: ltr;
+      text-align: left;
+      overflow-wrap: anywhere;
+      font-size: 12px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 920px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 20px;
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow-blue);
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 28%, transparent 70%, rgba(56, 189, 248, 0.08));
+      opacity: 0.44;
+    }
+
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel h3 {
+      margin: 0 0 8px;
+      font-size: clamp(20px, 4vw, 27px);
+      font-weight: 950;
+    }
+
+    .panel-desc {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 12px 0 6px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: #08111f;
+      color: var(--text);
+      border-radius: 16px;
+      padding: 13px;
+      outline: none;
+      font-family: inherit;
+      font-size: 15px;
+    }
+
+    input::placeholder {
+      color: rgba(159, 179, 200, 0.58);
+    }
+
+    input:focus,
+    select:focus {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.08);
+    }
+
+    button,
+    .btn {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      cursor: pointer;
+      color: white;
+      font-weight: 900;
+      border-radius: 16px;
+      padding: 13px 16px;
+      margin-top: 14px;
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.16);
+      transition: transform 0.15s ease, filter 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    button:hover,
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-green {
+      background: linear-gradient(135deg, #15803d, #22c55e);
+    }
+
+    .btn-yellow {
+      background: linear-gradient(135deg, #a16207, #facc15);
+      color: #111827;
+    }
+
+    .btn-soft {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      color: #dbeafe;
+    }
+
+    .notice {
+      margin: 14px 0 0;
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(250, 204, 21, 0.36);
+      background: rgba(250, 204, 21, 0.10);
+      color: #fef3c7;
+      line-height: 1.8;
+    }
+
+    .notice.error {
+      border-color: rgba(239, 68, 68, 0.42);
+      background: rgba(239, 68, 68, 0.10);
+      color: #fecaca;
+    }
+
+    .notice.ok {
+      border-color: rgba(34, 197, 94, 0.38);
+      background: rgba(34, 197, 94, 0.10);
+      color: #bbf7d0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .result-card {
+      margin-top: 16px;
+      min-height: 210px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border-radius: 28px;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      background: rgba(2, 8, 19, 0.56);
+      box-shadow: inset 0 0 32px rgba(56, 189, 248, 0.05);
+      padding: 18px;
+      transition: all 0.2s ease;
+    }
+
+    .result-card.allowed {
+      border-color: rgba(34, 197, 94, 0.62);
+      box-shadow: var(--shadow-green);
+    }
+
+    .result-card.denied {
+      border-color: rgba(239, 68, 68, 0.62);
+      box-shadow: var(--shadow-red);
+    }
+
+    .result-card.limited {
+      border-color: rgba(250, 204, 21, 0.70);
+      box-shadow: var(--shadow-yellow);
+    }
+
+    .result-icon {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 12px;
+      color: #dff7ff;
+      font-size: 34px;
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      background: rgba(56, 189, 248, 0.10);
+    }
+
+    .result-title {
+      margin: 0;
+      font-size: clamp(22px, 5vw, 36px);
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .result-message {
+      color: var(--muted);
+      line-height: 1.9;
+      margin: 10px auto 0;
+      max-width: 420px;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .mini-item {
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(2, 8, 19, 0.42);
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 13px;
+    }
+
+
+
+    .app-hero-cover {
+      position: relative;
+      min-height: 220px;
+      margin: 0 0 16px;
+      border-radius: 30px;
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      background:
+        linear-gradient(90deg, rgba(2, 8, 19, 0.92), rgba(2, 8, 19, 0.56), rgba(2, 8, 19, 0.24)),
+        url("./hero.jpeg") center center / cover no-repeat;
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.18);
+    }
+
+    .app-hero-cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(56, 189, 248, 0.20), transparent 34%),
+        linear-gradient(180deg, transparent, rgba(2, 8, 19, 0.72));
+    }
+
+    .app-hero-content {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 100%);
+      min-height: 220px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .app-hero-kicker {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(239, 68, 68, 0.36);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fecaca;
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .app-hero-title {
+      margin: 0;
+      font-size: clamp(26px, 6vw, 46px);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 1.1;
+      color: #f8fbff;
+      text-shadow: 0 0 24px rgba(2, 8, 19, 0.80);
+    }
+
+    .app-hero-subtitle {
+      margin: 9px 0 0;
+      color: rgba(224, 242, 254, 0.86);
+      line-height: 1.75;
+      font-size: 14px;
+      text-shadow: 0 0 18px rgba(2, 8, 19, 0.80);
+    }
+
+    @media (max-width: 700px) {
+      .app-hero-cover,
+      .app-hero-content {
+        min-height: 190px;
+      }
+    }
+
+
+    .hospital-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 20px;
+      background: rgba(2, 8, 19, 0.42);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
+    }
+
+    .hospital-logo {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.16);
+      background: #020813;
+      flex: 0 0 auto;
+    }
+
+    .hospital-name-ar {
+      font-size: 14px;
+      font-weight: 900;
+      color: #e0f2fe;
+      line-height: 1.45;
+    }
+
+    .hospital-name-en {
+      direction: ltr;
+      text-align: left;
+      font-size: 12px;
+      color: rgba(186, 230, 253, 0.76);
+      margin-top: 3px;
+      letter-spacing: 0.02em;
+    }
+
+    .permission-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .permission-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .permission-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(2, 8, 19, 0.42);
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .permission-box input {
+      width: auto;
+      accent-color: #38bdf8;
+      margin: 0;
+    }
+
+    .creator-signature {
+      width: min(1120px, 100%);
+      margin: 14px auto 0;
+      padding: 0 4px 2px;
+      display: flex;
+      justify-content: flex-start;
+      direction: ltr;
+    }
+
+    .creator-signature-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 10px 14px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(2, 8, 19, 0.72), rgba(15, 23, 42, 0.58));
+      border: 1px solid rgba(56, 189, 248, 0.20);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.10);
+      backdrop-filter: blur(18px);
+    }
+
+    .creator-label {
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(186, 230, 253, 0.76);
+      font-weight: 800;
+    }
+
+    .creator-name {
+      font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
+      font-size: clamp(16px, 3.2vw, 22px);
+      color: #e0f2fe;
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.42);
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">🅿️</div>
+        <div>
+          <h1 class="brand-title" id="appTitle">Emergency Room Parking</h1>
+          <div class="brand-subtitle">تسجيل الموظف أو التحقق من الدخول عبر QR</div>
+        <div class="hospital-identity">
+          <img class="hospital-logo" src="./logo.jpeg" alt="Al-Bashir Hospital Emergency Department" />
+          <div>
+            <div class="hospital-name-ar">مستشفى الإسعاف والطوارئ / البشير</div>
+            <div class="hospital-name-en">Al-Bashir Hospital Emergency Department</div>
+          </div>
+        </div>
+
+        </div>
+      </div>
+      <div class="pill" id="connectionBadge">جارِ فحص الاتصال...</div>
+    </header>
+
+    
+    <section class="app-hero-cover" aria-label="Emergency Room Parking interface image">
+      <div class="app-hero-content">
+        <span class="app-hero-kicker">Emergency Room Parking</span>
+        <h2 class="app-hero-title">بوابة كراج الطوارئ</h2>
+        <p class="app-hero-subtitle">دخول منظم عبر QR مباشر لكل موظف، مشرف، وسوبر أدمن عند كل دخول.</p>
+      </div>
+    </section>
+
+<div id="setupWarning" class="notice hidden"></div>
+
+    <section class="hero">
+      <h2>تسجيل الدخول للكراج</h2>
+      <p>
+        إذا كنت موظفًا جديدًا، عبّئ نموذج التسجيل. إذا كنت مسجلًا مسبقًا، استخدم التحقق السريع برقم الموظف ورقم الهاتف.
+        نتيجة الدخول ستظهر تلقائيًا على شاشة الحارس.
+      </p>
+      <div class="token-box" id="tokenBox">QR Token: غير موجود</div>
+      <div class="notice ok">
+        <strong>تنبيه:</strong>
+        كل دخول للكراج يجب أن يتم عبر مسح QR مباشر من شاشة الحارس. هذا ينطبق على جميع الموظفين، والمشرفين، والسوبر أدمن أيضًا.
+      </div>
+
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h3>موظف جديد — طلب تسجيل</h3>
+        <p class="panel-desc">
+          الدخول الأول بعد التسجيل يسمح لمرة واحدة فقط إذا كان QR صالحًا وغير مستخدم. بعد ذلك يلزم موافقة الإدارة.
+        </p>
+
+        <form id="registerForm">
+          <label for="fullName">الاسم الكامل</label>
+          <input id="fullName" name="fullName" type="text" placeholder="مثال: Dr. Alaa Aqrabawi" autocomplete="name" required />
+
+          <label for="employeeId">رقم الموظف</label>
+          <input id="employeeId" name="employeeId" type="text" placeholder="أدخل رقم الموظف" inputmode="numeric" required />
+
+          <label for="mobileNumber">رقم الهاتف</label>
+          <input id="mobileNumber" name="mobileNumber" type="tel" placeholder="أدخل رقم الهاتف" inputmode="tel" autocomplete="tel" required />
+
+          <label for="specialty">القسم / الاختصاص</label>
+          <select id="specialty" name="specialty" required>
+            <option value="">اختاري/اختر القسم</option>
+            <option>جراحة عامة</option>
+            <option>باطني</option>
+            <option>ENT</option>
+            <option>نسائية</option>
+            <option>مسالك بولية</option>
+            <option>عيون</option>
+            <option>جراحة دماغ وأعصاب</option>
+            <option>تخدير</option>
+            <option>طب عام</option>
+            <option>جراحة أوعية دموية</option>
+            <option>أخرى</option>
+          </select>
+
+          <button type="submit" id="registerButton" class="btn-green">إرسال طلب التسجيل</button>
+        </form>
+
+        <div class="mini-list">
+          <div class="mini-item">لا يتم اعتماد الموظف تلقائيًا. الإدارة تراجع الطلب وتوافق أو ترفض.</div>
+          <div class="mini-item">الدخول الأول، إذا تم، يظهر في لوحة الأدمن كـ دخول أول مرة بعد التسجيل.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h3>موظف مسجل — تحقق سريع</h3>
+          <p class="panel-desc">
+            يستخدمه الموظف المسجل مسبقًا، أو كخطة احتياطية عند الحاجة. يجب إدخال رقم الموظف ورقم الهاتف معًا.
+          </p>
+
+          <form id="checkForm">
+            <label for="checkEmployeeId">رقم الموظف</label>
+            <input id="checkEmployeeId" type="text" placeholder="رقم الموظف" inputmode="numeric" required />
+
+            <label for="checkMobileNumber">رقم الهاتف</label>
+            <input id="checkMobileNumber" type="tel" placeholder="رقم الهاتف" inputmode="tel" required />
+
+            <button type="submit" id="checkButton">تحقق من الدخول</button>
+          </form>
+
+          <a class="btn btn-soft" href="./index.html">رجوع إلى شاشة الحارس</a>
+          <a class="btn btn-soft" href="./login.html">دخول الإدارة</a>
+        </div>
+
+        <div class="result-card" id="resultCard">
+          <div>
+            <div class="result-icon" id="resultIcon">◆</div>
+            <h3 class="result-title" id="resultTitle">بانتظار الإرسال</h3>
+            <p class="result-message" id="resultMessage">
+              بعد إرسال الطلب أو التحقق، ستظهر النتيجة هنا وعلى شاشة الحارس.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="creator-signature" aria-label="Creator signature">
+      <div class="creator-signature-card">
+        <span class="creator-label">Concept &amp; Programming</span>
+        <span class="creator-name">Dr. Alaa Aqrabawi</span>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    // =========================================================
+    // CONFIG
+    // بدلي هذه القيم بعد إنشاء Supabase و Netlify.
+    // لا تضعي service_role هنا أبدًا.
+    // =========================================================
+    const APP_CONFIG = {
+      APP_NAME: "Emergency Room Parking",
+      SUPABASE_URL: "https://hnsbsvwxxxysjnhgtinl.supabase.co",
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhuc2Jzdnd4eHh5c2puaGd0aW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTMwNjAsImV4cCI6MjA5ODQyOTA2MH0.QtzYlzjmoGNvjhJhxdGxEwUTKWm0WHGGKn2THSBOgAo",
+      LIVE_SITE_URL: "https://garagey.netlify.app"
+    };
+
+    let supabaseClient = null;
+    const $ = (id) => document.getElementById(id);
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrToken = urlParams.get("token");
+
+    function isConfigReady() {
+      return (
+        APP_CONFIG.SUPABASE_URL &&
+        APP_CONFIG.SUPABASE_URL.startsWith("https://") &&
+        !APP_CONFIG.SUPABASE_URL.includes("PASTE_") &&
+        APP_CONFIG.SUPABASE_ANON_KEY &&
+        APP_CONFIG.SUPABASE_ANON_KEY.length > 20 &&
+        !APP_CONFIG.SUPABASE_ANON_KEY.includes("PASTE_")
+      );
+    }
+
+    function showSetupWarning(message, type = "warning") {
+      const el = $("setupWarning");
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    function setConnection(text, type = "ready") {
+      const badge = $("connectionBadge");
+      badge.textContent = text;
+      badge.className = "pill";
+      if (type === "ready") badge.classList.add("ready");
+      if (type === "error") badge.classList.add("error");
+    }
+
+    function initSupabase() {
+      $("appTitle").textContent = APP_CONFIG.APP_NAME || "Emergency Room Parking";
+      $("tokenBox").textContent = qrToken ? `QR Token: ${qrToken}` : "QR Token: غير موجود — التسجيل ممكن، لكن الدخول الأول يحتاج QR من الحارس.";
+
+      if (!isConfigReady()) {
+        setConnection("Supabase غير مفعّل", "error");
+        showSetupWarning(
+          "لم يتم إعداد Supabase بعد. الصفحة ستظهر بدون انهيار، لكن التسجيل والتحقق يحتاجان تشغيل schema.sql ووضع رابط Supabase والمفتاح العام.",
+          "error"
+        );
+        return;
+      }
+
+      supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+      setConnection("Supabase جاهز", "ready");
+    }
+
+    function setResult(result, message) {
+      const card = $("resultCard");
+      const icon = $("resultIcon");
+      const title = $("resultTitle");
+      const msg = $("resultMessage");
+
+      card.className = "result-card";
+
+      if (result === "ALLOWED") {
+        card.classList.add("allowed");
+        icon.textContent = "✓";
+        title.textContent = "مسموح بالدخول";
+      } else if (result === "LIMITED" || result === "PENDING_FIRST_ENTRY") {
+        card.classList.add("limited");
+        icon.textContent = "!";
+        title.textContent = "مسموح جزئيًا";
+      } else if (result === "PENDING") {
+        card.classList.add("limited");
+        icon.textContent = "…";
+        title.textContent = "الطلب قيد المراجعة";
+      } else if (result === "NOT_FOUND") {
+        card.classList.add("denied");
+        icon.textContent = "?";
+        title.textContent = "غير موجود";
+      } else if (result === "DENIED") {
+        card.classList.add("denied");
+        icon.textContent = "×";
+        title.textContent = "غير مسموح";
+      } else {
+        icon.textContent = "◆";
+        title.textContent = "تمت العملية";
+      }
+
+      msg.textContent = message || "تمت العملية.";
+    }
+
+    function disableButton(buttonId, disabled, textWhenDisabled, textWhenEnabled) {
+      const button = $(buttonId);
+      button.disabled = disabled;
+      button.textContent = disabled ? textWhenDisabled : textWhenEnabled;
+    }
+
+    $("registerForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!supabaseClient) {
+        setResult("DENIED", "لا يمكن إرسال التسجيل قبل إعداد Supabase.");
+        return;
+      }
+
+      disableButton("registerButton", true, "جارِ إرسال الطلب...", "إرسال طلب التسجيل");
+
+      try {
+        const payload = {
+          p_full_name: $("fullName").value.trim(),
+          p_employee_id: $("employeeId").value.trim(),
+          p_mobile_number: $("mobileNumber").value.trim(),
+          p_specialty: $("specialty").value.trim(),
+          p_qr_token: qrToken || null
+        };
+
+        const { data, error } = await supabaseClient.rpc("register_employee_request", payload);
+
+        if (error || !data) {
+          throw new Error(error?.message || "فشل إرسال الطلب.");
+        }
+
+        setResult(data.result, data.message);
+
+        if (data.ok === true) {
+          $("registerForm").reset();
+        }
+      } catch (err) {
+        setResult("DENIED", "حدث خطأ: " + err.message);
+      } finally {
+        disableButton("registerButton", false, "جارِ إرسال الطلب...", "إرسال طلب التسجيل");
+      }
+    });
+
+    $("checkForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!supabaseClient) {
+        setResult("DENIED", "لا يمكن التحقق قبل إعداد Supabase.");
+        return;
+      }
+
+      disableButton("checkButton", true, "جارِ التحقق...", "تحقق من الدخول");
+
+      try {
+        const payload = {
+          p_employee_id: $("checkEmployeeId").value.trim(),
+          p_mobile_number: $("checkMobileNumber").value.trim(),
+          p_qr_token: qrToken || null
+        };
+
+        const { data, error } = await supabaseClient.rpc("manual_employee_check", payload);
+
+        if (error || !data) {
+          throw new Error(error?.message || "فشل التحقق.");
+        }
+
+        setResult(data.result, data.message);
+      } catch (err) {
+        setResult("DENIED", "حدث خطأ: " + err.message);
+      } finally {
+        disableButton("checkButton", false, "جارِ التحقق...", "تحقق من الدخول");
+      }
+    });
+
+    initSupabase();
+  </script>
+</body>
+</html>
