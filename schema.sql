@@ -679,6 +679,59 @@ end;
 $$;
 
 -- =========================================================
+-- HELPER: permanently allowed specialties
+-- خيار الإسعاف والطوارئ DRS/NRS/EMT/MLT مسموح دائمًا ولا يُحسب ضمن الحدود اليومية
+-- =========================================================
+
+create or replace function public.normalize_specialty_name(p_specialty text)
+returns text
+language plpgsql
+immutable
+as $$
+declare
+  v text;
+begin
+  v := upper(trim(coalesce(p_specialty, '')));
+
+  v := replace(v, 'أ', 'ا');
+  v := replace(v, 'إ', 'ا');
+  v := replace(v, 'آ', 'ا');
+  v := replace(v, 'ٱ', 'ا');
+  v := replace(v, 'ة', 'ه');
+
+  v := regexp_replace(v, '\s+', '', 'g');
+  v := replace(v, '،', ',');
+  v := replace(v, '／', '/');
+  v := replace(v, '(', '');
+  v := replace(v, ')', '');
+  v := replace(v, '-', '');
+
+  return v;
+end;
+$$;
+
+create or replace function public.is_permanently_allowed_specialty(p_specialty text)
+returns boolean
+language plpgsql
+immutable
+as $$
+declare
+  v text;
+begin
+  v := public.normalize_specialty_name(p_specialty);
+
+  return v in (
+    public.normalize_specialty_name('الإسعاف والطوارئ (DRS/NRS/EMT/MLT)'),
+    public.normalize_specialty_name('الإسعاف والطوارئ - DRS/NRS/EMT/MLT'),
+    public.normalize_specialty_name('الإسعاف والطوارئ DRS,NRS,EMT/MLT'),
+    public.normalize_specialty_name('DRS,NRS,EMT/MLT'),
+    public.normalize_specialty_name('DRS/NRS/EMT/MLT'),
+    public.normalize_specialty_name('الإسعاف والطوارئ')
+  );
+end;
+$$;
+
+-- =========================================================
 -- RPC: manual_employee_check
 -- الفحص اليدوي عند تعطل QR.
 -- يتحقق من employee_id + mobile_number معًا.
@@ -788,6 +841,45 @@ begin
       'ok', true,
       'result', 'DENIED',
       'message', 'تم رفض الطلب، يرجى مراجعة الإدارة'
+    );
+  end if;
+
+  -- Permanently allowed specialty group:
+  -- الإسعاف والطوارئ (DRS/NRS/EMT/MLT)
+  -- هذا الاختصاص لا يدخل في specialty_daily_limits ولا يتحول إلى LIMITED.
+  if public.is_permanently_allowed_specialty(reg.specialty) then
+    insert into public.gate_access_logs (
+      employee_registration_id,
+      employee_id,
+      mobile_number,
+      full_name,
+      specialty,
+      result,
+      reason,
+      qr_token
+    )
+    values (
+      reg.id,
+      reg.employee_id,
+      reg.mobile_number,
+      reg.full_name,
+      reg.specialty,
+      'ALLOWED',
+      'PERMANENTLY_ALLOWED_SPECIALTY',
+      case when p_qr_token is null or p_qr_token = '' then null else p_qr_token::uuid end
+    );
+
+    perform public.set_guard_status(
+      'ALLOWED',
+      reg.full_name,
+      reg.employee_id,
+      'مسموح بالدخول — اختصاص مسموح دائمًا'
+    );
+
+    return jsonb_build_object(
+      'ok', true,
+      'result', 'ALLOWED',
+      'message', 'مسموح بالدخول — اختصاص مسموح دائمًا'
     );
   end if;
 
@@ -1787,3 +1879,165 @@ set full_name = 'Dr. Alaa Aqrabawi',
     permissions = public.default_admin_permissions('SUPER_ADMIN')
 where lower(email) = lower('kisscrisis@list.ru')
   and role = 'SUPER_ADMIN';
+
+
+-- =========================================================
+-- schema_patch_qr_claim.sql
+-- Emergency Room Parking V1.6
+--
+-- السبب:
+-- QR token صالح 30 ثانية فقط. إذا الموظف مسح QR ثم أخذ وقتًا بإدخال بياناته،
+-- كان النظام يرفضه لأن token انتهى قبل الضغط على إرسال.
+--
+-- الحل:
+-- عند فتح verify.html من QR، يتم Claim للـ QR فورًا خلال أول 30 ثانية.
+-- بعدها يحصل المستخدم على claim_token صالح لمدة 5 دقائق لإكمال النموذج.
+--
+-- الأمان:
+-- - QR الأصلي يبقى صالح 30 ثانية فقط.
+-- - بمجرد أن يفتحه أول شخص، يتم استعماله ولا يعود صالحًا لشخص آخر.
+-- - claim_token يستخدم مرة واحدة فقط.
+-- =========================================================
+
+alter table public.qr_sessions
+add column if not exists claim_token uuid unique;
+
+alter table public.qr_sessions
+add column if not exists claimed_at timestamptz;
+
+alter table public.qr_sessions
+add column if not exists claim_expires_at timestamptz;
+
+alter table public.qr_sessions
+add column if not exists claim_used_at timestamptz;
+
+create index if not exists idx_qr_sessions_claim_token
+on public.qr_sessions(claim_token);
+
+create index if not exists idx_qr_sessions_claim_expires_at
+on public.qr_sessions(claim_expires_at);
+
+create or replace function public.claim_qr_session(p_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  token_uuid uuid;
+  found_id uuid;
+  new_claim uuid := gen_random_uuid();
+begin
+  if p_token is null or length(trim(p_token)) = 0 then
+    return jsonb_build_object(
+      'ok', false,
+      'message', 'QR غير موجود'
+    );
+  end if;
+
+  begin
+    token_uuid := p_token::uuid;
+  exception when others then
+    return jsonb_build_object(
+      'ok', false,
+      'message', 'QR غير صحيح'
+    );
+  end;
+
+  select id
+  into found_id
+  from public.qr_sessions
+  where token = token_uuid
+    and used_at is null
+    and expires_at > now()
+  limit 1;
+
+  if found_id is null then
+    return jsonb_build_object(
+      'ok', false,
+      'message', 'QR غير صالح أو منتهي، يرجى مسح QR جديد من شاشة الحارس'
+    );
+  end if;
+
+  update public.qr_sessions
+  set used_at = now(),
+      claimed_at = now(),
+      claim_token = new_claim,
+      claim_expires_at = now() + interval '5 minutes',
+      claim_used_at = null
+  where id = found_id;
+
+  return jsonb_build_object(
+    'ok', true,
+    'claim_token', new_claim::text,
+    'expires_in_seconds', 300,
+    'message', 'تم تفعيل جلسة QR، أكمل البيانات خلال 5 دقائق'
+  );
+end;
+$$;
+
+create or replace function public.validate_and_use_qr_token(p_token text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  input_uuid uuid;
+  found_id uuid;
+begin
+  if p_token is null or length(trim(p_token)) = 0 then
+    return false;
+  end if;
+
+  begin
+    input_uuid := p_token::uuid;
+  exception when others then
+    return false;
+  end;
+
+  -- Backward compatibility: direct QR token use within original 30 seconds.
+  select id
+  into found_id
+  from public.qr_sessions
+  where token = input_uuid
+    and used_at is null
+    and expires_at > now()
+  limit 1;
+
+  if found_id is not null then
+    update public.qr_sessions
+    set used_at = now()
+    where id = found_id;
+
+    return true;
+  end if;
+
+  -- V1.6: claimed QR token. User opened QR on time, then has 5 minutes to submit form.
+  select id
+  into found_id
+  from public.qr_sessions
+  where claim_token = input_uuid
+    and claim_used_at is null
+    and claim_expires_at > now()
+  limit 1;
+
+  if found_id is not null then
+    update public.qr_sessions
+    set claim_used_at = now()
+    where id = found_id;
+
+    return true;
+  end if;
+
+  return false;
+end;
+$$;
+
+grant execute on function public.claim_qr_session(text) to anon, authenticated;
+grant execute on function public.validate_and_use_qr_token(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- اختبار سريع بعد التشغيل:
+-- افتحي QR جديد من شاشة الحارس، امسحيه، يجب أن يظهر في صفحة verify أن جلسة QR فعالة.
