@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- V1.5 QR FIX: robust iPhone QR image rendering + detailed RPC errors -->
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -182,7 +183,8 @@
       box-shadow: inset 0 0 25px rgba(56, 189, 248, 0.08);
     }
 
-    #qrCanvas {
+    #qrCanvas,
+    #qrImage {
       background: #ffffff;
       border-radius: 22px;
       padding: 14px;
@@ -460,6 +462,17 @@
       line-height: 1.7;
     }
 
+    .debug-line {
+      margin-top: 8px;
+      direction: ltr;
+      text-align: left;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #fecaca;
+      word-break: break-word;
+      opacity: 0.9;
+    }
+
 
 
 
@@ -694,7 +707,8 @@
         <h2 class="qr-title">اعرض الكود للموظف</h2>
 
         <div class="qr-stage">
-          <canvas id="qrCanvas" aria-label="QR Code"></canvas>
+          <img id="qrImage" class="qr-image" alt="QR Code" />
+          <canvas id="qrCanvas" class="hidden" aria-label="QR Code"></canvas>
           <a id="qrLink" class="qr-link" href="#" target="_blank" rel="noopener">جارِ تجهيز الرابط...</a>
         </div>
 
@@ -847,20 +861,68 @@
       setConnection("Supabase جاهز", "ready");
     }
 
+    function hideSetupWarning() {
+      const el = $("setupWarning");
+      if (el) el.classList.add("hidden");
+    }
+
+    function normalizeRpcData(data) {
+      let value = data;
+
+      if (Array.isArray(value)) {
+        value = value[0];
+      }
+
+      if (typeof value === "string") {
+        try {
+          value = JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      if (value && value.create_qr_session) {
+        value = value.create_qr_session;
+      }
+
+      if (typeof value === "string") {
+        try {
+          value = JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      return value;
+    }
+
     async function drawQr(url) {
       currentQrUrl = url;
       $("qrLink").href = url;
       $("qrLink").textContent = url;
 
-      await QRCode.toCanvas($("qrCanvas"), url, {
-        width: 288,
-        margin: 3,
-        errorCorrectionLevel: "M",
-        color: {
-          dark: "#020813",
-          light: "#ffffff"
-        }
-      });
+      const img = $("qrImage");
+      const canvas = $("qrCanvas");
+
+      // V1.5: Stable QR rendering on iPhone/Safari.
+      // The token still comes from Supabase. This only changes how the QR image is drawn.
+      const qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&format=svg&data=" + encodeURIComponent(url) + "&_=" + Date.now();
+
+      if (canvas) canvas.classList.add("hidden");
+
+      img.onload = () => {
+        hideSetupWarning();
+      };
+
+      img.onerror = () => {
+        showSetupWarning(
+          "تم إنشاء الرابط، لكن تعذر تحميل صورة QR. استخدمي الرابط الظاهر تحت المربع أو أعيدي تحديث الصفحة.",
+          "error"
+        );
+      };
+
+      img.src = qrImageUrl;
+      img.alt = url;
     }
 
     async function drawFallbackQr() {
@@ -878,12 +940,25 @@
       }
 
       try {
-        const { data, error } = await supabaseClient.rpc("create_qr_session");
+        hideSetupWarning();
 
-        if (error || !data || data.ok !== true || !data.token) {
-          console.error("QR session error:", error || data);
+        const { data, error } = await supabaseClient.rpc("create_qr_session");
+        const result = normalizeRpcData(data);
+
+        if (error) {
+          console.error("QR session RPC error:", error);
           showSetupWarning(
-            "تعذر إنشاء QR آمن من Supabase. تأكدي أنك شغّلت schema.sql. تم عرض QR عام مؤقتًا بدلًا من ذلك.",
+            "فشل إنشاء QR من Supabase RPC: " + (error.message || JSON.stringify(error)) + " — تم عرض QR عام مؤقتًا.",
+            "error"
+          );
+          await drawFallbackQr();
+          return;
+        }
+
+        if (!result || result.ok !== true || !result.token) {
+          console.error("Unexpected QR session data:", data, result);
+          showSetupWarning(
+            "استجابة QR غير متوقعة من Supabase: " + JSON.stringify(data) + " — تم عرض QR عام مؤقتًا.",
             "error"
           );
           await drawFallbackQr();
@@ -891,11 +966,14 @@
         }
 
         const verifyUrl = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl());
-        verifyUrl.searchParams.set("token", data.token);
+        verifyUrl.searchParams.set("token", result.token);
         await drawQr(verifyUrl.toString());
       } catch (err) {
-        console.error(err);
-        showSetupWarning("حدث خطأ أثناء إنشاء QR. تم عرض QR عام مؤقتًا.", "error");
+        console.error("QR creation catch:", err);
+        showSetupWarning(
+          "حدث خطأ أثناء إنشاء QR: " + (err.message || String(err)) + " — تم عرض QR عام مؤقتًا.",
+          "error"
+        );
         await drawFallbackQr();
       }
     }
