@@ -336,6 +336,37 @@
       display: none !important;
     }
 
+
+
+    .auto-device-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(34, 197, 94, 0.28);
+      background: rgba(6, 95, 70, 0.18);
+      box-shadow: 0 0 28px rgba(34, 197, 94, 0.14);
+    }
+
+    .auto-device-panel h4 {
+      margin: 0 0 8px;
+      color: #bbf7d0;
+      font-size: 15px;
+    }
+
+    .auto-device-panel p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 13px;
+    }
+
+    .auto-device-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
     .result-card {
       margin-top: 16px;
       min-height: 210px;
@@ -631,8 +662,8 @@
     <section class="hero">
       <h2>تسجيل الدخول للكراج</h2>
       <p>
-        إذا كنت موظفًا جديدًا، عبّئ نموذج التسجيل. إذا كنت مسجلًا مسبقًا، استخدم التحقق السريع برقم الموظف ورقم الهاتف.
-        نتيجة الدخول ستظهر تلقائيًا على شاشة الحارس.
+        إذا كنت موظفًا جديدًا، عبّئ نموذج التسجيل مرة واحدة فقط. إذا كنت مسجلًا مسبقًا، استخدم التحقق برقم الموظف ورقم الهاتف.
+        بعد اعتماد الإدارة وتفعيل الجهاز الموثوق، يمكنك لاحقًا مسح QR فقط بدون إدخال الرقم كل مرة.
       </p>
       <div class="token-box" id="tokenBox">QR Token: غير موجود</div>
       <div id="qrSessionStatus" class="notice hidden"></div>
@@ -703,6 +734,15 @@
             <button type="submit" id="checkButton">تحقق من الدخول</button>
           </form>
 
+          <div id="autoDevicePanel" class="auto-device-panel hidden">
+            <h4>التحقق السريع من هذا الجهاز</h4>
+            <p id="autoDeviceText">بعد موافقة الإدارة، يمكن ربط هذا الجهاز ليتم الدخول لاحقًا بمجرد مسح QR.</p>
+            <div class="auto-device-actions">
+              <button type="button" id="enableAutoDeviceButton" class="btn-green" onclick="enableTrustedDeviceOnThisBrowser()">تفعيل هذا الجهاز</button>
+              <button type="button" class="btn-soft" onclick="forgetTrustedDeviceOnThisBrowser()">نسيان هذا الجهاز</button>
+            </div>
+          </div>
+
           <a class="btn btn-soft" href="./index.html">رجوع إلى شاشة الحارس</a>
           <a class="btn btn-soft" href="./login.html">دخول الإدارة</a>
         </div>
@@ -746,6 +786,8 @@
     const qrToken = urlParams.get("token");
     let activeQrToken = qrToken;
     let qrClaimReady = false;
+    let lastManualCheck = null;
+    const TRUSTED_DEVICE_STORAGE_KEY = "erp_trusted_device_token_v1";
 
     function isConfigReady() {
       return (
@@ -865,6 +907,8 @@
           result.message || "تم تفعيل QR. أكمل البيانات خلال 5 دقائق.",
           "ok"
         );
+
+        await tryAutoVerifyFromTrustedDevice();
       } catch (err) {
         qrClaimReady = false;
         setQrSessionStatus(
@@ -934,6 +978,153 @@
       button.textContent = disabled ? textWhenDisabled : textWhenEnabled;
     }
 
+
+    function getTrustedDeviceToken() {
+      return localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY) || "";
+    }
+
+    function saveTrustedDeviceToken(token) {
+      localStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, token);
+    }
+
+    function clearTrustedDeviceToken() {
+      localStorage.removeItem(TRUSTED_DEVICE_STORAGE_KEY);
+    }
+
+    function generateTrustedDeviceToken() {
+      const bytes = new Uint8Array(48);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    function setAutoDevicePanel(message, type = "warning", visible = true) {
+      const panel = $("autoDevicePanel");
+      const text = $("autoDeviceText");
+      if (!panel || !text) return;
+      text.textContent = message;
+      panel.classList.toggle("hidden", !visible);
+      panel.style.borderColor = type === "ok" ? "rgba(34,197,94,.42)" : type === "error" ? "rgba(239,68,68,.42)" : "rgba(250,204,21,.34)";
+      panel.style.background = type === "ok" ? "rgba(6,95,70,.18)" : type === "error" ? "rgba(127,29,29,.18)" : "rgba(113,63,18,.16)";
+    }
+
+    function forgetTrustedDeviceOnThisBrowser() {
+      clearTrustedDeviceToken();
+      setAutoDevicePanel("تم نسيان هذا الجهاز من المتصفح فقط. إذا كان مربوطًا في النظام، يستطيع الأدمن إلغاء ربطه نهائيًا من لوحة الإدارة.", "warning", true);
+    }
+
+    async function checkTrustedDeviceEligibility(employeeId, mobileNumber) {
+      if (!supabaseClient) return;
+
+      try {
+        const { data, error } = await supabaseClient.rpc("can_register_trusted_device", {
+          p_employee_id: employeeId,
+          p_mobile_number: mobileNumber
+        });
+
+        const result = normalizeRpcData(data, "can_register_trusted_device");
+
+        if (error || !result) {
+          setAutoDevicePanel("تعذر فحص أهلية التحقق السريع. يمكن الاستمرار بالتحقق اليدوي.", "warning", false);
+          return;
+        }
+
+        if (result.eligible === true) {
+          lastManualCheck = { employeeId, mobileNumber };
+          setAutoDevicePanel(result.message || "يمكن تفعيل التحقق السريع على هذا الجهاز.", "ok", true);
+        } else {
+          setAutoDevicePanel(result.message || "هذا الموظف غير مؤهل للتحقق السريع من الجهاز.", "warning", true);
+        }
+      } catch (err) {
+        setAutoDevicePanel("تعذر فحص التحقق السريع: " + (err.message || String(err)), "warning", false);
+      }
+    }
+
+    async function enableTrustedDeviceOnThisBrowser() {
+      if (!supabaseClient) {
+        setAutoDevicePanel("Supabase غير جاهز.", "error", true);
+        return;
+      }
+
+      if (!lastManualCheck) {
+        setAutoDevicePanel("أجرِ تحققًا يدويًا ناجحًا أولًا، ثم فعّل هذا الجهاز.", "warning", true);
+        return;
+      }
+
+      const button = $("enableAutoDeviceButton");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "جارِ تفعيل الجهاز...";
+      }
+
+      try {
+        const token = generateTrustedDeviceToken();
+        const { data, error } = await supabaseClient.rpc("register_trusted_device", {
+          p_employee_id: lastManualCheck.employeeId,
+          p_mobile_number: lastManualCheck.mobileNumber,
+          p_device_token: token
+        });
+
+        const result = normalizeRpcData(data, "register_trusted_device");
+
+        if (error || !result || result.ok !== true) {
+          throw new Error(error?.message || result?.message || "فشل تفعيل الجهاز.");
+        }
+
+        saveTrustedDeviceToken(token);
+        setAutoDevicePanel(result.message || "تم تفعيل هذا الجهاز بنجاح.", "ok", true);
+      } catch (err) {
+        setAutoDevicePanel("فشل تفعيل الجهاز: " + (err.message || String(err)), "error", true);
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "تفعيل هذا الجهاز";
+        }
+      }
+    }
+
+    async function tryAutoVerifyFromTrustedDevice() {
+      const storedToken = getTrustedDeviceToken();
+
+      if (!storedToken) {
+        setAutoDevicePanel("هذا الجهاز غير مربوط بعد. استخدم التحقق اليدوي، ثم فعّل الجهاز إذا كان مسموحًا لك.", "warning", false);
+        return;
+      }
+
+      if (!supabaseClient || !activeQrToken || qrClaimReady !== true) {
+        setAutoDevicePanel("يوجد جهاز محفوظ، لكن يلزم QR مباشر صالح من شاشة الحارس.", "warning", true);
+        return;
+      }
+
+      try {
+        setAutoDevicePanel("تم العثور على جهاز موثوق. جارِ التحقق تلقائيًا...", "warning", true);
+
+        const { data, error } = await supabaseClient.rpc("auto_employee_check", {
+          p_device_token: storedToken,
+          p_qr_token: activeQrToken
+        });
+
+        const result = normalizeRpcData(data, "auto_employee_check");
+
+        if (error || !result) {
+          throw new Error(error?.message || "فشل التحقق التلقائي.");
+        }
+
+        if (result.clear_device === true) {
+          clearTrustedDeviceToken();
+        }
+
+        setResult(result.result || "DENIED", result.message || "تمت محاولة التحقق التلقائي.");
+
+        if (result.ok === true && result.result === "ALLOWED") {
+          setAutoDevicePanel("تم الدخول تلقائيًا من هذا الجهاز. لا تحتاج لإدخال الرقم.", "ok", true);
+        } else {
+          setAutoDevicePanel(result.message || "لم ينجح التحقق التلقائي. استخدم التحقق اليدوي.", "warning", true);
+        }
+      } catch (err) {
+        setAutoDevicePanel("تعذر التحقق التلقائي: " + (err.message || String(err)) + ". استخدم التحقق اليدوي.", "warning", true);
+      }
+    }
+
     $("registerForm").addEventListener("submit", async (event) => {
       event.preventDefault();
 
@@ -995,6 +1186,12 @@
         }
 
         setResult(data.result, data.message);
+
+        if (data && data.ok === true && data.result === "ALLOWED") {
+          await checkTrustedDeviceEligibility(payload.p_employee_id, payload.p_mobile_number);
+        } else {
+          lastManualCheck = null;
+        }
       } catch (err) {
         setResult("DENIED", "حدث خطأ: " + err.message);
       } finally {
