@@ -1142,6 +1142,7 @@
                 <th>الاختصاص</th>
                 <th>الحالة</th>
                 <th>الدخول الأول</th>
+                <th>التحقق السريع</th>
                 <th>تاريخ الطلب</th>
                 <th>إجراء</th>
               </tr>
@@ -1879,11 +1880,40 @@
       renderAudit();
     }
 
+
+    function renderTrustedDeviceCell(row) {
+      const enabled = row.trusted_device_enabled === true;
+      const linked = !!row.trusted_device_token_hash;
+      const canEdit = hasPermission("can_approve_requests");
+
+      if (!enabled) {
+        return `
+          <span class="badge red">غير مفعّل</span>
+          <div class="row-actions" style="margin-top:6px">
+            <button class="btn-soft" onclick="setTrustedDevice('${row.id}', true, false)" ${!canEdit ? "disabled" : ""}>تفعيل</button>
+          </div>
+        `;
+      }
+
+      return `
+        <span class="badge green">مفعّل</span>
+        <br>
+        ${linked
+          ? `<span class="small-muted">جهاز مربوط<br>آخر استخدام: ${formatDate(row.trusted_device_last_used_at)}</span>`
+          : `<span class="small-muted">بانتظار ربط جهاز الموظف</span>`
+        }
+        <div class="row-actions" style="margin-top:6px">
+          <button class="btn-yellow" onclick="setTrustedDevice('${row.id}', true, true)" ${!canEdit ? "disabled" : ""}>إلغاء الربط</button>
+          <button class="btn-red" onclick="setTrustedDevice('${row.id}', false, true)" ${!canEdit ? "disabled" : ""}>تعطيل</button>
+        </div>
+      `;
+    }
+
     function renderRegistrations() {
       const body = $("registrationsBody");
 
       if (!registrationsData.length) {
-        body.innerHTML = `<tr><td colspan="8">لا توجد طلبات حتى الآن.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="9">لا توجد طلبات حتى الآن.</td></tr>`;
         return;
       }
 
@@ -1895,6 +1925,7 @@
           <td>${escapeHtml(row.specialty)}</td>
           <td>${statusBadge(row.status)}</td>
           <td>${row.first_entry_used ? `<span class="badge yellow">مستخدم</span><br><span class="small-muted">${formatDate(row.first_entry_at)}</span>` : `<span class="badge blue">غير مستخدم</span>`}</td>
+          <td>${renderTrustedDeviceCell(row)}</td>
           <td>${formatDate(row.created_at)}</td>
           <td>
             <div class="row-actions">
