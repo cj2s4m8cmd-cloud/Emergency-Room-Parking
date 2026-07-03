@@ -743,8 +743,9 @@
             </div>
           </div>
 
-          <a class="btn btn-soft" href="./index.html">رجوع إلى شاشة الحارس</a>
-          <a class="btn btn-soft" href="./login.html">دخول الإدارة</a>
+          <div class="notice ok" id="employeeOnlyNotice">
+            هذه الصفحة مخصصة للموظفين فقط. خيارات الإدارة وشاشة الحارس غير ظاهرة هنا.
+          </div>
         </div>
 
         <div class="result-card" id="resultCard">
@@ -1187,7 +1188,7 @@
 
         setResult(data.result, data.message);
 
-        if (data && data.ok === true && data.result === "ALLOWED") {
+        if (data && data.ok === true && (data.result === "ALLOWED" || data.result === "LIMITED")) {
           await checkTrustedDeviceEligibility(payload.p_employee_id, payload.p_mobile_number);
         } else {
           lastManualCheck = null;
