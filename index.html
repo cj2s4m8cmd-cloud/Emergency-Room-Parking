@@ -899,33 +899,86 @@
     }
 
     async function drawQr(url) {
-      currentQrUrl = url;
-      $("qrLink").href = url;
-      $("qrLink").textContent = url;
+  currentQrUrl = url;
 
-      const img = $("qrImage");
-      const canvas = $("qrCanvas");
+  const link = $("qrLink");
+  const img = $("qrImage");
+  const canvas = $("qrCanvas");
 
-      // V1.5: Stable QR rendering on iPhone/Safari.
-      // The token still comes from Supabase. This only changes how the QR image is drawn.
-      const qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&format=svg&data=" + encodeURIComponent(url) + "&_=" + Date.now();
+  link.href = url;
+  link.textContent = url;
 
-      if (canvas) canvas.classList.add("hidden");
-
-      img.onload = () => {
-        hideSetupWarning();
-      };
-
-      img.onerror = () => {
-        showSetupWarning(
-          "تم إنشاء الرابط، لكن تعذر تحميل صورة QR. استخدمي الرابط الظاهر تحت المربع أو أعيدي تحديث الصفحة.",
-          "error"
-        );
-      };
-
-      img.src = qrImageUrl;
-      img.alt = url;
+  // Generate the QR locally first: faster, safer, and independent of qrserver.
+  try {
+    if (!canvas) throw new Error("QR canvas is missing");
+    if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+      throw new Error("Local QR library did not load");
     }
+
+    if (img) {
+      img.onload = null;
+      img.onerror = null;
+      img.removeAttribute("src");
+      img.classList.add("hidden");
+    }
+
+    canvas.classList.remove("hidden");
+
+    await window.QRCode.toCanvas(canvas, url, {
+      width: 320,
+      margin: 2,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: "#000000",
+        light: "#ffffff"
+      }
+    });
+
+    canvas.setAttribute("aria-label", "QR Code");
+    hideSetupWarning();
+    return;
+  } catch (localQrError) {
+    console.error("Local QR rendering failed:", localQrError);
+  }
+
+  // External service is now only a last-resort fallback.
+  try {
+    if (!img) throw new Error("QR image element is missing");
+    if (canvas) canvas.classList.add("hidden");
+
+    img.classList.remove("hidden");
+    img.alt = "QR Code";
+
+    const fallbackUrl =
+      "https://api.qrserver.com/v1/create-qr-code/" +
+      "?size=320x320&margin=12&format=png&data=" +
+      encodeURIComponent(url) +
+      "&_=" +
+      Date.now();
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error("External QR fallback failed"));
+      img.src = fallbackUrl;
+    });
+
+    showSetupWarning(
+      "تم عرض QR بالطريقة الاحتياطية. يُفضّل التأكد من تحميل مكتبة QR المحلية.",
+      "warning"
+    );
+  } catch (fallbackError) {
+    console.error("All QR rendering methods failed:", fallbackError);
+
+    if (img) img.classList.add("hidden");
+    if (canvas) canvas.classList.add("hidden");
+
+    showSetupWarning(
+      "تم إنشاء رابط الدخول، لكن تعذر رسم QR. يمكن فتح الرابط الظاهر أسفل المربع مؤقتًا.",
+      "error"
+    );
+  }
+}
+
 
     async function drawFallbackQr() {
       const url = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl()).toString();
