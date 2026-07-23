@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- V1.5 QR FIX: robust iPhone QR image rendering + detailed RPC errors -->
+<!-- V1.6 QR FIX: local QR rendering first + external fallback -->
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -473,9 +473,6 @@
       opacity: 0.9;
     }
 
-
-
-
     .app-hero-cover {
       position: relative;
       min-height: 220px;
@@ -547,7 +544,6 @@
         min-height: 190px;
       }
     }
-
 
     .hospital-identity {
       display: flex;
@@ -678,20 +674,18 @@
         <div>
           <h1 class="brand-title" id="appTitle">Emergency Room Parking</h1>
           <div class="brand-subtitle">شاشة الحارس — QR متغير كل 30 ثانية، ونتيجة واضحة بعد المسح</div>
-        <div class="hospital-identity">
-          <img class="hospital-logo" src="./logo.jpeg" alt="Al-Bashir Hospital Emergency Department" />
-          <div>
-            <div class="hospital-name-ar">مستشفى الإسعاف والطوارئ / البشير</div>
-            <div class="hospital-name-en">Al-Bashir Hospital Emergency Department</div>
+          <div class="hospital-identity">
+            <img class="hospital-logo" src="./logo.jpeg" alt="Al-Bashir Hospital Emergency Department" />
+            <div>
+              <div class="hospital-name-ar">مستشفى الإسعاف والطوارئ / البشير</div>
+              <div class="hospital-name-en">Al-Bashir Hospital Emergency Department</div>
+            </div>
           </div>
-        </div>
-
         </div>
       </div>
       <div class="pill" id="connectionBadge">جارِ فحص الاتصال...</div>
     </header>
 
-    
     <section class="app-hero-cover" aria-label="Emergency Room Parking interface image">
       <div class="app-hero-content">
         <span class="app-hero-kicker">Emergency Room Parking</span>
@@ -700,14 +694,14 @@
       </div>
     </section>
 
-<div id="setupWarning" class="notice hidden"></div>
+    <div id="setupWarning" class="notice hidden"></div>
 
     <section class="main-grid">
       <div class="panel qr-panel">
         <h2 class="qr-title">اعرض الكود للموظف</h2>
 
         <div class="qr-stage">
-          <img id="qrImage" class="qr-image" alt="QR Code" />
+          <img id="qrImage" class="qr-image hidden" alt="QR Code" />
           <canvas id="qrCanvas" class="hidden" aria-label="QR Code"></canvas>
           <a id="qrLink" class="qr-link" href="#" target="_blank" rel="noopener">جارِ تجهيز الرابط...</a>
         </div>
@@ -715,11 +709,11 @@
         <p class="qr-caption">
           لا يحتاج الحارس لإدخال بيانات. الموظف يمسح الكود، ثم تظهر النتيجة هنا.
         </p>
+
         <div class="notice ok">
           <strong>تنبيه مهم:</strong>
           هذا QR مباشر فقط، يتغير كل 30 ثانية ويُستخدم مرة واحدة. تصوير الشاشة لا يعطي صلاحية لاحقة للدخول.
         </div>
-
 
         <div class="countdown" id="qrCountdown">30</div>
 
@@ -782,15 +776,9 @@
         <span class="creator-name">Dr. Alaa Aqrabawi</span>
       </div>
     </footer>
-
   </main>
 
   <script>
-    // =========================================================
-    // CONFIG
-    // بدلي هذه القيم بعد إنشاء Supabase و Netlify.
-    // لا تضعي service_role هنا أبدًا.
-    // =========================================================
     const APP_CONFIG = {
       APP_NAME: "Emergency Room Parking",
       SUPABASE_URL: "https://hnsbsvwxxxysjnhgtinl.supabase.co",
@@ -899,86 +887,83 @@
     }
 
     async function drawQr(url) {
-  currentQrUrl = url;
+      currentQrUrl = url;
 
-  const link = $("qrLink");
-  const img = $("qrImage");
-  const canvas = $("qrCanvas");
+      const link = $("qrLink");
+      const img = $("qrImage");
+      const canvas = $("qrCanvas");
 
-  link.href = url;
-  link.textContent = url;
+      link.href = url;
+      link.textContent = url;
 
-  // Generate the QR locally first: faster, safer, and independent of qrserver.
-  try {
-    if (!canvas) throw new Error("QR canvas is missing");
-    if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
-      throw new Error("Local QR library did not load");
-    }
+      try {
+        if (!canvas) throw new Error("QR canvas is missing");
+        if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+          throw new Error("Local QR library did not load");
+        }
 
-    if (img) {
-      img.onload = null;
-      img.onerror = null;
-      img.removeAttribute("src");
-      img.classList.add("hidden");
-    }
+        if (img) {
+          img.onload = null;
+          img.onerror = null;
+          img.removeAttribute("src");
+          img.classList.add("hidden");
+        }
 
-    canvas.classList.remove("hidden");
+        canvas.classList.remove("hidden");
 
-    await window.QRCode.toCanvas(canvas, url, {
-      width: 320,
-      margin: 2,
-      errorCorrectionLevel: "M",
-      color: {
-        dark: "#000000",
-        light: "#ffffff"
+        await window.QRCode.toCanvas(canvas, url, {
+          width: 320,
+          margin: 2,
+          errorCorrectionLevel: "M",
+          color: {
+            dark: "#000000",
+            light: "#ffffff"
+          }
+        });
+
+        canvas.setAttribute("aria-label", "QR Code");
+        hideSetupWarning();
+        return;
+      } catch (localQrError) {
+        console.error("Local QR rendering failed:", localQrError);
       }
-    });
 
-    canvas.setAttribute("aria-label", "QR Code");
-    hideSetupWarning();
-    return;
-  } catch (localQrError) {
-    console.error("Local QR rendering failed:", localQrError);
-  }
+      try {
+        if (!img) throw new Error("QR image element is missing");
+        if (canvas) canvas.classList.add("hidden");
 
-  // External service is now only a last-resort fallback.
-  try {
-    if (!img) throw new Error("QR image element is missing");
-    if (canvas) canvas.classList.add("hidden");
+        img.classList.remove("hidden");
+        img.alt = "QR Code";
 
-    img.classList.remove("hidden");
-    img.alt = "QR Code";
+        const fallbackUrl =
+          "https://api.qrserver.com/v1/create-qr-code/" +
+          "?size=320x320&margin=12&format=png&data=" +
+          encodeURIComponent(url) +
+          "&_=" +
+          Date.now();
 
-    const fallbackUrl =
-      "https://api.qrserver.com/v1/create-qr-code/" +
-      "?size=320x320&margin=12&format=png&data=" +
-      encodeURIComponent(url) +
-      "&_=" +
-      Date.now();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error("External QR fallback failed"));
+          img.src = fallbackUrl;
+        });
 
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = () => reject(new Error("External QR fallback failed"));
-      img.src = fallbackUrl;
-    });
+        showSetupWarning(
+          "تم عرض QR بالطريقة الاحتياطية. يُفضّل التأكد من تحميل مكتبة QR المحلية.",
+          "warning"
+        );
+      } catch (fallbackError) {
+        console.error("All QR rendering methods failed:", fallbackError);
 
-    showSetupWarning(
-      "تم عرض QR بالطريقة الاحتياطية. يُفضّل التأكد من تحميل مكتبة QR المحلية.",
-      "warning"
-    );
-  } catch (fallbackError) {
-    console.error("All QR rendering methods failed:", fallbackError);
+        if (img) img.classList.add("hidden");
+        if (canvas) canvas.classList.add("hidden");
 
-    if (img) img.classList.add("hidden");
-    if (canvas) canvas.classList.add("hidden");
-
-    showSetupWarning(
-      "تم إنشاء رابط الدخول، لكن تعذر رسم QR. يمكن فتح الرابط الظاهر أسفل المربع مؤقتًا.",
-      "error"
-    );
-  }
-}
-
+        showSetupWarning(
+          "تم إنشاء رابط الدخول، لكن تعذر رسم QR. يمكن فتح الرابط الظاهر أسفل المربع مؤقتًا.",
+          "error"
+        );
+      }
+    }
 
     async function drawFallbackQr() {
       const url = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl()).toString();
@@ -1074,7 +1059,10 @@
       $("statusIcon").textContent = icon;
       $("decisionTitle").textContent = title;
       $("decisionMessage").textContent = message || "تظهر هنا نتيجة المسح.";
-      $("employeeLine").textContent = employeeName || employeeId ? `الموظف: ${employeeName || ""} ${employeeId ? " — " + employeeId : ""}` : "";
+      $("employeeLine").textContent =
+        employeeName || employeeId
+          ? `الموظف: ${employeeName || ""}${employeeId ? " — " + employeeId : ""}`
+          : "";
     }
 
     async function resetGuardDisplaySoon() {
