@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- V1.7: result-first employee screen -->
+<!-- V1.8: trusted-device automatic entry + result-first employee screen -->
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -97,7 +97,7 @@
   <div id="setupWarning" class="notice hidden"></div>
   <div id="qrSessionStatus" class="notice hidden"></div>
 
-  <section class="grid">
+  <section class="grid" id="manualSections">
     <div class="panel">
       <h2>موظف مسجل — تسجيل الدخول</h2>
       <p class="desc">أدخل رقم الموظف ورقم الهاتف بعد مسح QR من شاشة الحارس.</p>
@@ -215,12 +215,21 @@
       card.classList.add("denied"); icon.textContent="?"; title.textContent="الموظف غير موجود";
     } else if(result==="DENIED"){
       card.classList.add("denied"); icon.textContent="×"; title.textContent="غير مسموح";
+    } else if(result==="WAITING"){
+      icon.textContent="⏳"; title.textContent="جارِ التحقق";
+    } else if(result==="READY"){
+      icon.textContent="◆"; title.textContent="QR صالح";
     } else {
       icon.textContent="◆"; title.textContent="تمت العملية";
     }
 
     msg.textContent=message || "تمت العملية.";
     window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function showManualSections(show=true){
+    const sections=$("manualSections");
+    if(sections) sections.classList.toggle("hidden", !show);
   }
 
   function disableButton(id,disabled,busyText,normalText){
@@ -241,6 +250,7 @@
   async function claimQrSessionIfPresent(){
     if(!qrToken){
       qrClaimReady=false;
+      showManualSections(true);
       setResult("DENIED","يجب مسح QR مباشر من شاشة الحارس أولًا.");
       setQrSessionStatus("لم يتم العثور على QR صالح.","error");
       return;
@@ -261,8 +271,16 @@
       activeQrToken=result.claim_token;
       qrClaimReady=true;
       setQrSessionStatus(result.message || "تم تفعيل QR. أكمل خلال 5 دقائق.","ok");
-      setResult("READY","QR صالح. أدخل بياناتك أو انتظر التحقق التلقائي.");
-      await tryAutoVerifyFromTrustedDevice();
+
+      const storedToken=getTrustedDeviceToken();
+      if(storedToken){
+        showManualSections(false);
+        setResult("WAITING","تم التعرف على جهاز محفوظ. جارِ التحقق تلقائيًا...");
+        await tryAutoVerifyFromTrustedDevice();
+      }else{
+        showManualSections(true);
+        setResult("READY","QR صالح. سجّل الدخول مرة واحدة، ثم فعّل هذا الجهاز للدخول التلقائي لاحقًا.");
+      }
     }catch(err){
       qrClaimReady=false;
       setResult("DENIED","فشل تفعيل QR: "+(err.message||String(err)));
@@ -318,7 +336,7 @@
       const result=normalizeRpcData(data,"register_trusted_device");
       if(error || !result || result.ok!==true) throw new Error(error?.message||result?.message||"فشل تفعيل الجهاز.");
       saveTrustedDeviceToken(token);
-      setAutoDevicePanel(result.message||"تم تفعيل الجهاز.","ok",true);
+      setAutoDevicePanel(result.message||"تم تفعيل الجهاز. من الآن فصاعدًا يكفي مسح QR فقط.","ok",true);
     }catch(err){
       setAutoDevicePanel("فشل تفعيل الجهاز: "+err.message,"error",true);
     }finally{ button.disabled=false; }
@@ -326,9 +344,13 @@
 
   async function tryAutoVerifyFromTrustedDevice(){
     const storedToken=getTrustedDeviceToken();
-    if(!storedToken || !qrClaimReady) return;
+    if(!storedToken || !qrClaimReady){
+      showManualSections(true);
+      return;
+    }
 
     try{
+      showManualSections(false);
       setResult("WAITING","جارِ التحقق تلقائيًا من الجهاز الموثوق...");
       const {data,error}=await supabaseClient.rpc("auto_employee_check",{
         p_device_token:storedToken,p_qr_token:activeQrToken
@@ -336,9 +358,23 @@
       const result=normalizeRpcData(data,"auto_employee_check");
       if(error || !result) throw new Error(error?.message||"فشل التحقق التلقائي.");
       if(result.clear_device===true) clearTrustedDeviceToken();
+
       setResult(result.result||"DENIED",result.message||"تم التحقق.");
+
+      if(result.ok===true && ["ALLOWED","LIMITED"].includes(result.result)){
+        showManualSections(false);
+      }else{
+        showManualSections(true);
+        setAutoDevicePanel(
+          result.message || "تعذر الدخول التلقائي. استخدم تسجيل الدخول اليدوي.",
+          "warning",
+          true
+        );
+      }
     }catch(err){
+      showManualSections(true);
       setResult("DENIED","تعذر التحقق التلقائي: "+err.message);
+      setAutoDevicePanel("استخدم تسجيل الدخول اليدوي، ثم أعد تفعيل الجهاز عند الحاجة.","warning",true);
     }
   }
 
